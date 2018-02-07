@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Remove previous data first
+hadoop fs -rm -r /cms/users/akirilov/datasets
+
+hdir=hdfs:///cms/users/akirilov/datasets
+PYTHONPATH=$PWD/CMSSpark/src/python CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
+
+hadoop fs -get $hdir .
+
+# extract header
+head -1 datasets/2017/02/28/part-00000 > df.csv
+
+# concatenate all parts except header
+header=`cat df.csv`
+cat datasets/2017/02/28/part* | grep -v $header >> df.csv
+

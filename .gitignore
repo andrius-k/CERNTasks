@@ -1,0 +1,7 @@
+# Ignore CMSSpark dir that was cloned
+CMSSpark/
+
+# Generated files
+datasets/
+*.csv
+*.pdf
