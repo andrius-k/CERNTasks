@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ -d "CMSSpark" ]; then
+  echo "CMSSpark was already cloned"
+else
+  git clone https://github.com/vkuznet/CMSSpark
+fi
