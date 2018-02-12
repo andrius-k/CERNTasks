@@ -29,3 +29,4 @@ In order to retrieve and aggregate PhEDEx data please run `./aggregate`
 ### Analysing data
 
 In order to analyze data please run `python analyse.py`. This will generate all plots and push automatically generated report to wiki page: https://github.com/andrius-k/CERNTasks/wiki/Phedex_DBS_Reports
+

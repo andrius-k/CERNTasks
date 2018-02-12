@@ -4,6 +4,8 @@ CMSSpark/
 # Ignore wiki repo
 CERNTasks.wiki/
 
+.DS_Store
+
 # Generated files
 datasets/
 *_datasets/
