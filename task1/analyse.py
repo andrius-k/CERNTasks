@@ -11,7 +11,7 @@ df = pd.read_csv('df.csv')
 # Aggregate by the same column twice
 result = df.groupby('site').agg({'size': 'sum', 'site': 'count'})
 
-# We can also use lambdas
+# We could also use lambdas
 # result = df.groupby('site').agg({'size': lambda x: x.sum(), 'site': lambda x: x.count()})
 
 result.columns.values[0] = 'number_of_sites'

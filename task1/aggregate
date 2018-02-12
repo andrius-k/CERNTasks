@@ -4,7 +4,7 @@
 hadoop fs -rm -r /cms/users/akirilov/datasets
 
 hdir=hdfs:///cms/users/akirilov/datasets
-PYTHONPATH=$PWD/CMSSpark/src/python CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
 
 hadoop fs -get $hdir .
 

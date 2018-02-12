@@ -5,3 +5,9 @@ if [ -d "CMSSpark" ]; then
 else
   git clone https://github.com/vkuznet/CMSSpark
 fi
+
+if [ -d "CERNTasks.wiki" ]; then
+  echo "CERNTasks.wiki was already cloned"
+else
+  git clone https://github.com/andrius-k/CERNTasks.wiki
+fi

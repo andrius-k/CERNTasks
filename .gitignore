@@ -1,7 +1,12 @@
 # Ignore CMSSpark dir that was cloned
 CMSSpark/
 
+# Ignore wiki repo
+CERNTasks.wiki/
+
 # Generated files
 datasets/
+*_datasets/
+*_plots/
 *.csv
 *.pdf

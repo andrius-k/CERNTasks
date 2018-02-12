@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Task 2
+
+# ========== Aggregate PhEDEx data ==========
+
+# Remove previous data first
+hadoop fs -rm -r /cms/users/akirilov/phedex_datasets
+
+hdir=hdfs:///cms/users/akirilov/phedex_datasets
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
+
+hadoop fs -get $hdir .
+
+# extract header
+head -1 phedex_datasets/2017/02/28/part-00000 > phedex_df.csv
+
+# concatenate all parts except header
+header=`cat phedex_df.csv`
+cat phedex_datasets/2017/02/28/part* | grep -v $header >> phedex_df.csv
+
+# ========== Aggregate DBS data ==========
+
+# Remove previous data first
+hadoop fs -rm -r /cms/users/akirilov/dbs_datasets
+
+hdir=hdfs:///cms/users/akirilov/dbs_datasets
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark dbs_events.py --fout=$hdir --yarn --verbose --cdate=20170228
+
+hadoop fs -get $hdir .
+
+# extract header
+head -1 dbs_datasets/part-00000 > dbs_df.csv
+
+# concatenate all parts except header
+header=`cat dbs_df.csv`
+cat dbs_datasets/part* | grep -v $header >> dbs_df.csv
