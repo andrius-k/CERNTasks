@@ -6,7 +6,7 @@ import matplotlib as mpl
 # We will not be showing images because we don't haw UI
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import os, shutil, subprocess
+import os, shutil, subprocess, operator
 from subprocess import check_output
 
 PHEDEX_PLOTS_PATH = 'phedex_plots/'
@@ -19,12 +19,15 @@ def append_report(lines):
     report = report + lines
     report = report + '\n'
 
-def write_df_to_report(df):
+def write_df_to_report(df, head=0):
     append_report('| Tier | Count | Size (TB) |')
     append_report('| ------- | ------ | ------ |')
 
+    if head != 0:
+        df = df[:head]
+
     for index, row in df.iterrows():
-        append_report(' | ' + index + ' | ' + str(int(row['tier_count'])) + ' | ' + str(round(row['sum_size'], 1)) + ' | ' )
+        append_report('| ' + index + ' | ' + str(int(row['tier_count'])) + ' | ' + str(round(row['sum_size'], 1)) + ' |' )
 
 def copy_directory(src, dest):
     # Delete destination first
@@ -39,6 +42,13 @@ def copy_directory(src, dest):
     except OSError as e:
         print('Directory not copied. Error: %s' % e)
 
+def bytes_to_readable(num, suffix='B'):
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f %s%s" % (num, 'Yi', suffix)
+
 def create_plot_dirs():
     if not os.path.exists(PHEDEX_PLOTS_PATH):
         os.makedirs(PHEDEX_PLOTS_PATH)
@@ -52,7 +62,7 @@ def read_report_template():
 
 def write_report():
     global report
-    with open('../CERNTasks.wiki/Phedex_DBS_Reports.md', 'w') as f: 
+    with open('../CERNTasks.wiki/CMS_Reports.md', 'w') as f: 
         f.write(report)
 
 def commit_report():
@@ -87,11 +97,13 @@ def analyse_phedex_data():
 
         result = result.rename(columns={'size': 'sum_size', 'site': 'tier_count'})
 
+        result.sort('tier_count', ascending=False, inplace=True)
+
         # Bytes to terabytes
         result['sum_size'] = result['sum_size'] / 1000000000000
 
-        append_report('### Site: ' + site)
-        write_df_to_report(result)
+        append_report('### Site {0}. Showing TOP 5 most significant data-tiers'.format(site))
+        write_df_to_report(result, 5)
 
         print 'Site: ' + site
         print(result)
@@ -111,11 +123,13 @@ def analyse_dbs_data():
 
     result = result.rename(columns={'size': 'sum_size', 'dataset': 'tier_count'})
 
+    result.sort('tier_count', ascending=False, inplace=True)
+
     # Bytes to terabytes
     result['sum_size'] = result['sum_size'] / 1000000000000
 
-    append_report('## DBS data')
-    write_df_to_report(result)
+    append_report('## DBS data. Showing TOP 5 most significant data-tiers')
+    write_df_to_report(result, 5)
 
     print 'DBS data:'
     print(result)
@@ -136,23 +150,36 @@ def aggregate_all_datastreams_info():
     locations = { 
         'AAA (JSON) user logs accessing XrootD servers': 'hdfs:///project/monitoring/archive/xrootd/raw/gled', 
         'EOS (JSON) user logs accesses CERN EOS': 'hdfs:///project/monitoring/archive/eos/logs/reports/cms', 
-        'HTCondor (JSON) CMS Jobs logs': 'hdfs:///project/awg/htcondor', # ???????
-        # 'FTS (JSON) CMS FTS logs': 'hdfs://', 
-        'CMSSW (Avro) CMSSW jobs': 'hdfs:///project/awg/cms/cmssw-popularity', 
-        'JobMonitoring (Avro) CMS Dashboard DB snapshot': 'hdfs:///project/awg/cms/job-monitoring', 
+        'HTCondor (JSON) CMS Jobs logs': 'hdfs:///project/monitoring/archive/condor/raw/metric',
+        'FTS (JSON) CMS FTS logs': 'hdfs:///project/monitoring/archive/fts/raw/complete', 
+        'CMSSW (Avro) CMSSW jobs': 'hdfs:///project/awg/cms/cmssw-popularity/avro-snappy', 
+        'JobMonitoring (Avro) CMS Dashboard DB snapshot': 'hdfs:///project/awg/cms/jm-data-popularity/avro-snappy', 
         'WMArchive (Avro) CMS Workflows archive': 'hdfs:///cms/wmarchive/avro', 
-        # 'ASO (CSV) CMS ASO accesses': 'hdfs://', 
+        'ASO (CSV) CMS ASO accesses': 'hdfs:///project/awg/cms/CMS_ASO/filetransfersdb/merged', 
         'DBS (CSV) CMS Data Bookkeeping snapshot': 'hdfs:///project/awg/cms/CMS_DBS3_PROD_GLOBAL/current', 
         'PhEDEx (CSV) CMS data location DB snapshot': 'hdfs:///project/awg/cms/phedex/block-replicas-snapshots'
     }
 
-    print 'Size of all datastreams:'
+    results = {}
+
     for name, location in locations.iteritems():
-        out = check_output(['hadoop', 'fs', '-du', '-s', '-h', location])
-        out = out.split(' ')
-        size = out[0] + ' ' + out[1]
-        append_report(' | ' + name + ' | ' + size + ' | ')
-        print name + ': ' + size
+        out = check_output(['hadoop', 'fs', '-du', '-s', location])
+        size = float(out.split(' ')[0])
+        results[name] = size
+    
+    total_sum = sum(results.values())
+
+    # Sort by value
+    results = sorted(results.items(), key=operator.itemgetter(1), reverse=True)
+    
+    print 'Size of all datastreams:'
+
+    for result in results:
+        append_report('| ' + result[0] + ' | ' + bytes_to_readable(result[1]) + ' |')
+        print result[0] + ': ' + bytes_to_readable(result[1])
+
+    append_report('| **Total** | **' + bytes_to_readable(total_sum) + '** |')
+    print 'Total ' + ': ' + bytes_to_readable(total_sum)
 
 def main():
     create_plot_dirs()
