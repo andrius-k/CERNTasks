@@ -12,3 +12,4 @@ datasets/
 *_plots/
 *.csv
 *.pdf
+*_time_data.txt
