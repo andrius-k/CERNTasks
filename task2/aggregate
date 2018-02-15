@@ -8,7 +8,8 @@
 hadoop fs -rm -r /cms/users/akirilov/phedex_datasets
 
 hdir=hdfs:///cms/users/akirilov/phedex_datasets
-PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark ../../../../task2/aggregate_phedex.py --fout=$hdir --verbose --date=20170228
+# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
 
 hadoop fs -get $hdir .
 
@@ -25,7 +26,8 @@ cat phedex_datasets/2017/02/28/part* | grep -v $header >> phedex_df.csv
 hadoop fs -rm -r /cms/users/akirilov/dbs_datasets
 
 hdir=hdfs:///cms/users/akirilov/dbs_datasets
-PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark dbs_events.py --fout=$hdir --yarn --verbose --cdate=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark ../../../../task2/aggregate_dbs.py --fout=$hdir --verbose
+# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark dbs_events.py --fout=$hdir --yarn --verbose --cdate=20170228
 
 hadoop fs -get $hdir .
 

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# ========== Aggregate PhEDEx data ==========
+
+# Remove previous data first
+#hadoop fs -rm -r /cms/users/akirilov/phedex_datasets
+
+hdir=hdfs:///cms/users/akirilov/phedex_datasets
+# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark ../../../../task2/aggregate_phedex.py --fout=$hdir --yarn --verbose --date=20170228
+# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark ../../../../task2/aggregate_dbs.py --fout=$hdir --yarn --verbose
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
+
+# ../CMSSpark/bin/run_spark $(pwd)/aggregate_phedex.py
+

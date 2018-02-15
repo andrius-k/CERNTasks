@@ -1,5 +1,3 @@
-# Task 2
-
 import pandas as pd
 
 import matplotlib as mpl
@@ -11,6 +9,8 @@ from subprocess import check_output
 
 PHEDEX_PLOTS_PATH = 'phedex_plots/'
 DBS_PLOTS_PATH = 'dbs_plots/'
+PHEDEX_TIME_DATA_FILE = 'phedex_time_data.txt'
+DBS_TIME_DATA_FILE = 'dbs_time_data.txt'
 
 report = ''
 
@@ -60,6 +60,14 @@ def read_report_template():
     with open('../aggregation_template.md') as f: 
         report = f.read()
 
+def read_phedex_time_data():
+    with open(PHEDEX_TIME_DATA_FILE) as f: 
+        return int(float(f.read()))
+
+def read_dbs_time_data():
+    with open(DBS_TIME_DATA_FILE) as f: 
+        return int(float(f.read()))
+
 def write_report():
     global report
     with open('../CERNTasks.wiki/CMS_Reports.md', 'w') as f: 
@@ -97,7 +105,7 @@ def analyse_phedex_data():
 
         result = result.rename(columns={'size': 'sum_size', 'site': 'tier_count'})
 
-        result.sort('tier_count', ascending=False, inplace=True)
+        result.sort_values('tier_count', ascending=False, inplace=True)
 
         # Bytes to terabytes
         result['sum_size'] = result['sum_size'] / 1000000000000
@@ -105,14 +113,13 @@ def analyse_phedex_data():
         append_report('### Site {0}. Showing TOP 5 most significant data-tiers'.format(site))
         write_df_to_report(result, 5)
 
-        print 'Site: ' + site
-        print(result)
-        print ''
-
         plot_filename = make_plot(result, PHEDEX_PLOTS_PATH + site)
 
         append_report('### Plot')
         append_report('[[images/' + plot_filename + ']]')
+    
+    time = read_phedex_time_data()
+    append_report('##### Spark job run time: {0} s'.format(time))
 
     # Move plot files to wiki repo
     copy_directory(PHEDEX_PLOTS_PATH, '../CERNTasks.wiki/images/' + PHEDEX_PLOTS_PATH)
@@ -123,7 +130,7 @@ def analyse_dbs_data():
 
     result = result.rename(columns={'size': 'sum_size', 'dataset': 'tier_count'})
 
-    result.sort('tier_count', ascending=False, inplace=True)
+    result.sort_values('tier_count', ascending=False, inplace=True)
 
     # Bytes to terabytes
     result['sum_size'] = result['sum_size'] / 1000000000000
@@ -131,13 +138,13 @@ def analyse_dbs_data():
     append_report('## DBS data. Showing TOP 5 most significant data-tiers')
     write_df_to_report(result, 5)
 
-    print 'DBS data:'
-    print(result)
-
     plot_filename = make_plot(result, DBS_PLOTS_PATH + 'dbs')
 
     append_report('### Plot')
     append_report('[[images/' + plot_filename + ']]')
+
+    time = read_dbs_time_data()
+    append_report('##### Spark job run time: {0} s'.format(time))
 
     # Move plot file to wiki repo
     copy_directory(DBS_PLOTS_PATH, '../CERNTasks.wiki/images/' + DBS_PLOTS_PATH)
@@ -171,15 +178,11 @@ def aggregate_all_datastreams_info():
 
     # Sort by value
     results = sorted(results.items(), key=operator.itemgetter(1), reverse=True)
-    
-    print 'Size of all datastreams:'
 
     for result in results:
         append_report('| ' + result[0] + ' | ' + bytes_to_readable(result[1]) + ' |')
-        print result[0] + ': ' + bytes_to_readable(result[1])
 
     append_report('| **Total** | **' + bytes_to_readable(total_sum) + '** |')
-    print 'Total ' + ': ' + bytes_to_readable(total_sum)
 
 def main():
     create_plot_dirs()
