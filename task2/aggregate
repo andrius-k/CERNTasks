@@ -1,15 +1,15 @@
 #!/bin/sh
 
-# Task 2
+# ========== Aggregate PhEDEx data ========== #
 
-# ========== Aggregate PhEDEx data ==========
+# Copy script file that will be ran
+cp aggregate_phedex.py ../CMSSpark/src/python/CMSSpark/aggregate_phedex.py
 
 # Remove previous data first
 hadoop fs -rm -r /cms/users/akirilov/phedex_datasets
 
 hdir=hdfs:///cms/users/akirilov/phedex_datasets
-PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark ../../../../task2/aggregate_phedex.py --fout=$hdir --verbose --date=20170228
-# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_phedex.py --fout=$hdir --yarn --verbose --date=20170228
 
 hadoop fs -get $hdir .
 
@@ -20,14 +20,16 @@ head -1 phedex_datasets/2017/02/28/part-00000 > phedex_df.csv
 header=`cat phedex_df.csv`
 cat phedex_datasets/2017/02/28/part* | grep -v $header >> phedex_df.csv
 
-# ========== Aggregate DBS data ==========
+# ========== Aggregate DBS data ========== #
+
+# Copy script file that will be ran
+cp aggregate_dbs.py ../CMSSpark/src/python/CMSSpark/aggregate_dbs.py
 
 # Remove previous data first
 hadoop fs -rm -r /cms/users/akirilov/dbs_datasets
 
 hdir=hdfs:///cms/users/akirilov/dbs_datasets
-PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark ../../../../task2/aggregate_dbs.py --fout=$hdir --verbose
-# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark dbs_events.py --fout=$hdir --yarn --verbose --cdate=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_dbs.py --fout=$hdir --yarn --verbose
 
 hadoop fs -get $hdir .
 

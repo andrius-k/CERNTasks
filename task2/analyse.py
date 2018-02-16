@@ -4,8 +4,10 @@ import matplotlib as mpl
 # We will not be showing images because we don't haw UI
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import os, shutil, subprocess, operator
 from subprocess import check_output
+import os
+import shutil
+import operator
 
 PHEDEX_PLOTS_PATH = 'phedex_plots/'
 DBS_PLOTS_PATH = 'dbs_plots/'
@@ -27,7 +29,7 @@ def write_df_to_report(df, head=0):
         df = df[:head]
 
     for index, row in df.iterrows():
-        append_report('| ' + index + ' | ' + str(int(row['tier_count'])) + ' | ' + str(round(row['sum_size'], 1)) + ' |' )
+        append_report('| ' + index + ' | ' + str(int(row['tier_count'])) + ' | ' + str(round(row['sum_size'], 1)) + ' |')
 
 def copy_directory(src, dest):
     # Delete destination first
@@ -41,6 +43,7 @@ def copy_directory(src, dest):
     # Any error saying that the directory doesn't exist
     except OSError as e:
         print('Directory not copied. Error: %s' % e)
+
 
 def bytes_to_readable(num, suffix='B'):
     for unit in ['','K','M','G','T','P','E','Z']:
@@ -57,20 +60,20 @@ def create_plot_dirs():
 
 def read_report_template():
     global report
-    with open('../aggregation_template.md') as f: 
+    with open('../aggregation_template.md') as f:
         report = f.read()
 
 def read_phedex_time_data():
-    with open(PHEDEX_TIME_DATA_FILE) as f: 
-        return int(float(f.read()))
+    with open(PHEDEX_TIME_DATA_FILE) as f:
+        return f.read()
 
 def read_dbs_time_data():
-    with open(DBS_TIME_DATA_FILE) as f: 
-        return int(float(f.read()))
+    with open(DBS_TIME_DATA_FILE) as f:
+        return f.read()
 
 def write_report():
     global report
-    with open('../CERNTasks.wiki/CMS_Reports.md', 'w') as f: 
+    with open('../CERNTasks.wiki/CMS_Reports.md', 'w') as f:
         f.write(report)
 
 def commit_report():
@@ -119,7 +122,7 @@ def analyse_phedex_data():
         append_report('[[images/' + plot_filename + ']]')
     
     time = read_phedex_time_data()
-    append_report('##### Spark job run time: {0} s'.format(time))
+    append_report('#### Spark job run time: {0}'.format(time))
 
     # Move plot files to wiki repo
     copy_directory(PHEDEX_PLOTS_PATH, '../CERNTasks.wiki/images/' + PHEDEX_PLOTS_PATH)
@@ -144,7 +147,7 @@ def analyse_dbs_data():
     append_report('[[images/' + plot_filename + ']]')
 
     time = read_dbs_time_data()
-    append_report('##### Spark job run time: {0} s'.format(time))
+    append_report('#### Spark job run time: {0}'.format(time))
 
     # Move plot file to wiki repo
     copy_directory(DBS_PLOTS_PATH, '../CERNTasks.wiki/images/' + DBS_PLOTS_PATH)
@@ -155,15 +158,15 @@ def aggregate_all_datastreams_info():
     append_report('| ------- | ------ |')
 
     locations = { 
-        'AAA (JSON) user logs accessing XrootD servers': 'hdfs:///project/monitoring/archive/xrootd/raw/gled', 
-        'EOS (JSON) user logs accesses CERN EOS': 'hdfs:///project/monitoring/archive/eos/logs/reports/cms', 
+        'AAA (JSON) user logs accessing XrootD servers': 'hdfs:///project/monitoring/archive/xrootd/raw/gled',
+        'EOS (JSON) user logs accesses CERN EOS': 'hdfs:///project/monitoring/archive/eos/logs/reports/cms',
         'HTCondor (JSON) CMS Jobs logs': 'hdfs:///project/monitoring/archive/condor/raw/metric',
-        'FTS (JSON) CMS FTS logs': 'hdfs:///project/monitoring/archive/fts/raw/complete', 
-        'CMSSW (Avro) CMSSW jobs': 'hdfs:///project/awg/cms/cmssw-popularity/avro-snappy', 
-        'JobMonitoring (Avro) CMS Dashboard DB snapshot': 'hdfs:///project/awg/cms/jm-data-popularity/avro-snappy', 
-        'WMArchive (Avro) CMS Workflows archive': 'hdfs:///cms/wmarchive/avro', 
-        'ASO (CSV) CMS ASO accesses': 'hdfs:///project/awg/cms/CMS_ASO/filetransfersdb/merged', 
-        'DBS (CSV) CMS Data Bookkeeping snapshot': 'hdfs:///project/awg/cms/CMS_DBS3_PROD_GLOBAL/current', 
+        'FTS (JSON) CMS FTS logs': 'hdfs:///project/monitoring/archive/fts/raw/complete',
+        'CMSSW (Avro) CMSSW jobs': 'hdfs:///project/awg/cms/cmssw-popularity/avro-snappy',
+        'JobMonitoring (Avro) CMS Dashboard DB snapshot': 'hdfs:///project/awg/cms/jm-data-popularity/avro-snappy',
+        'WMArchive (Avro) CMS Workflows archive': 'hdfs:///cms/wmarchive/avro',
+        'ASO (CSV) CMS ASO accesses': 'hdfs:///project/awg/cms/CMS_ASO/filetransfersdb/merged',
+        'DBS (CSV) CMS Data Bookkeeping snapshot': 'hdfs:///project/awg/cms/CMS_DBS3_PROD_GLOBAL/current',
         'PhEDEx (CSV) CMS data location DB snapshot': 'hdfs:///project/awg/cms/phedex/block-replicas-snapshots'
     }
 
@@ -173,7 +176,7 @@ def aggregate_all_datastreams_info():
         out = check_output(['hadoop', 'fs', '-du', '-s', location])
         size = float(out.split(' ')[0])
         results[name] = size
-    
+   
     total_sum = sum(results.values())
 
     # Sort by value
@@ -187,7 +190,7 @@ def aggregate_all_datastreams_info():
 def main():
     create_plot_dirs()
     read_report_template()
-    
+  
     analyse_phedex_data()
     analyse_dbs_data()
     aggregate_all_datastreams_info()
@@ -197,4 +200,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
