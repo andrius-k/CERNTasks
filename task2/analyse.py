@@ -8,6 +8,7 @@ from subprocess import check_output
 import os
 import shutil
 import operator
+import argparse
 
 PHEDEX_PLOTS_PATH = 'phedex_plots/'
 DBS_PLOTS_PATH = 'dbs_plots/'
@@ -192,6 +193,13 @@ def aggregate_all_datastreams_info():
     append_report('| **Total** | **' + bytes_to_readable(total_sum) + '** |')
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--commit", action="store_true",
+                        dest="commit", 
+                        default=False, 
+                        help="Determines whether report should be committed to Github wiki")
+    opts = parser.parse_args()
+
     create_plot_dirs()
     read_report_template()
   
@@ -200,7 +208,9 @@ def main():
     aggregate_all_datastreams_info()
 
     write_report()
-    commit_report()
+
+    if opts.commit == True:
+        commit_report()
 
 if __name__ == '__main__':
     main()

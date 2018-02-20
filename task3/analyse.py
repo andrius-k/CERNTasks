@@ -8,6 +8,7 @@ from subprocess import check_output
 import os
 import shutil
 import operator
+import argparse
 
 PLOTS_PATH = 'campaign_plots/'
 
@@ -125,6 +126,13 @@ def analyse_data_by_site():
     copy_directory(PLOTS_PATH, '../CERNTasks.wiki/images/' + PLOTS_PATH)
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--commit", action="store_true",
+                        dest="commit", 
+                        default=False, 
+                        help="Determines whether report should be committed to Github wiki")
+    opts = parser.parse_args()
+
     create_plot_dirs()
     read_report_template()
   
@@ -132,7 +140,9 @@ def main():
     analyse_data_by_site()
 
     write_report()
-    commit_report()
+
+    if opts.commit == True:
+        commit_report()
 
 if __name__ == '__main__':
     main()
