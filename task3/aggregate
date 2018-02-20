@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Copy script file that will be ran
+cp aggregate_campaigns.py ../CMSSpark/src/python/CMSSpark/aggregate_campaigns.py
+
+# Remove previous data first
+hadoop fs -rm -r /cms/users/akirilov/campaigns
+
+hdir=hdfs:///cms/users/akirilov/campaigns
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_campaigns.py --fout=$hdir --yarn --verbose --date=20170228
+
+hadoop fs -get $hdir .
+
+# extract header
+head -1 campaigns/part-00000 > campaigns_df.csv
+
+# concatenate all parts except header
+header=`cat campaigns_df.csv`
+cat campaigns/part* | grep -v $header >> campaigns_df.csv
