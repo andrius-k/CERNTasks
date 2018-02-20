@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
-#pylint: disable=
-# Author: Valentin Kuznetsov <vkuznet AT gmail [DOT] com>
 """
 Spark script to parse and aggregate DBS and PhEDEx records on HDFS.
 """

@@ -32,6 +32,10 @@ def write_df_to_report(df, head=0):
         append_report('| ' + index + ' | ' + str(int(row['tier_count'])) + ' | ' + str(round(row['sum_size'], 1)) + ' |')
 
 def copy_directory(src, dest):
+    dest_dir = os.path.dirname(dest)
+    if not os.path.exists(dest_dir):
+        os.mkdir(dest_dir)
+    
     # Delete destination first
     shutil.rmtree(dest)
 

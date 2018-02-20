@@ -8,8 +8,11 @@ CERNTasks.wiki/
 
 # Generated files
 datasets/
+campaigns/
 *_datasets/
 *_plots/
 *.csv
 *.pdf
 *_time_data.txt
+_SUCCESS
+part-*
