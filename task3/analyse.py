@@ -21,7 +21,7 @@ def append_report(lines):
     report = report + '\n'
 
 def write_campaigns_to_report(df, head=0):
-    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | Most Significant Site Size | Second Most Significant Site Size |')
+    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | MSS Size (PB) | Second MSS Size (PB) |')
     append_report('| ------- | ------ | ------ | ------ | ------ | ------ |')
 
     if head != 0:
@@ -29,11 +29,11 @@ def write_campaigns_to_report(df, head=0):
 
     for index, row in df.iterrows():
         append_report('| ' + row['campaign'] + 
-                      ' | ' + str(round(row['total_phedex_size'])) + 
+                      ' | ' + str(round(row['total_phedex_size'], 1)) + 
                       ' | ' + str(round(row['total_dbs_size'], 1)) + 
                       ' | ' + '{:.6f}'.format(float(row['total_phedex_size']/row['total_dbs_size'])) + 
-                      ' | ' + str(round(row['SiteA'])) + 
-                      ' | ' + str(round(row['SiteB'])) + 
+                      ' | ' + str(round(row['SiteA'], 1)) + 
+                      ' | ' + str(round(row['SiteB'], 1)) + 
                       ' |')
 
 def write_sites_to_report(df, head=0):
@@ -89,6 +89,8 @@ def analyse_data_by_campaign():
 
     append_report('## Campaigns')
 
+    append_report('In this table MSS means *Most Significant Site*. This is the site that contains the most amount of that campaigns data.')
+
     # result = df.groupby('campaign')\
     #            .agg({'dbs_size': 'sum', 'phedex_size': 'sum', 'campaign': 'count'})
 
@@ -114,6 +116,8 @@ def analyse_data_by_campaign():
     # Bytes to petabytes
     result['total_dbs_size'] = result['total_dbs_size'] / 1000000000000000
     result['total_phedex_size'] = result['total_phedex_size'] / 1000000000000000
+    result['SiteA'] = result['SiteA'] / 1000000000000000
+    result['SiteB'] = result['SiteB'] / 1000000000000000
     
     append_report('### Showing TOP 10 most significant campaigns')
     write_campaigns_to_report(result, 10)
