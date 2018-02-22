@@ -21,18 +21,19 @@ def append_report(lines):
     report = report + '\n'
 
 def write_campaigns_to_report(df, head=0):
-    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | Count |')
-    append_report('| ------- | ------ | ------ | ------ | ------ |')
+    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | Most Significant Site Size | Second Most Significant Site Size |')
+    append_report('| ------- | ------ | ------ | ------ | ------ | ------ |')
 
     if head != 0:
         df = df[:head]
 
     for index, row in df.iterrows():
         append_report('| ' + row['campaign'] + 
-                      ' | ' + str(round(row['phedex_size'])) + 
-                      ' | ' + str(round(row['dbs_size'], 1)) + 
-                      ' | ' + '{:.6f}'.format(float(row['phedex_size']/row['dbs_size'])) + 
-                      ' | ' + str(int(row['count'])) + 
+                      ' | ' + str(round(row['total_phedex_size'])) + 
+                      ' | ' + str(round(row['total_dbs_size'], 1)) + 
+                      ' | ' + '{:.6f}'.format(float(row['total_phedex_size']/row['total_dbs_size'])) + 
+                      ' | ' + str(round(row['SiteA'])) + 
+                      ' | ' + str(round(row['SiteB'])) + 
                       ' |')
 
 def write_sites_to_report(df, head=0):
@@ -79,33 +80,17 @@ def write_report():
 def commit_report():
     os.system('(cd ../CERNTasks.wiki/; git add -A; git commit -m "Auto-commiting report"; git push origin master)')
 
+def get_second_max(columns, row):
+    list = row[columns].dropna().sort_values()
+    return list[len(list) - 2] if len(list) > 1 else float('nan')
+
 def analyse_data_by_campaign():
     df = pd.read_csv('campaigns_df.csv')
 
     append_report('## Campaigns')
 
-    result = df.groupby('campaign')\
-               .agg({'dbs_size': 'sum', 'phedex_size': 'sum', 'campaign': 'count'})
-
-    result.rename(columns={'campaign': 'count'}, inplace=True)
-    result.sort_values('dbs_size', ascending=False, inplace=True)
-    result.reset_index(inplace=True)
-    
-    # Bytes to petabytes
-    result['dbs_size'] = result['dbs_size'] / 1000000000000000
-    result['phedex_size'] = result['phedex_size'] / 1000000000000000
-    
-    append_report('### Showing TOP 10 most significant campaigns')
-    write_campaigns_to_report(result, 10)
-
-    append_report('#### Total number of campaigns %s' % len(result.index))
-
-def get_second_max(columns, row):
-    list = row[columns].dropna().sort_values()
-    return list[len(list) - 2] if len(list) > 1 else float('nan')
-
-def analyse_data_by_site():
-    df = pd.read_csv('campaigns_df.csv')
+    # result = df.groupby('campaign')\
+    #            .agg({'dbs_size': 'sum', 'phedex_size': 'sum', 'campaign': 'count'})
 
     result = pivot_table(df, values='phedex_size', index='campaign', columns='site', aggfunc='sum')
 
@@ -119,11 +104,24 @@ def analyse_data_by_site():
     total_sizes_df = df.groupby('campaign', as_index=False)\
                         .agg({'phedex_size': 'sum', 'dbs_size': 'sum'})\
                         .rename(columns={'phedex_size': 'total_phedex_size', 'dbs_size': 'total_dbs_size'})
-                        
+
     result = total_sizes_df.join(result, on='campaign')
 
-    print(result)
-    return
+    # result.rename(columns={'campaign': 'count'}, inplace=True)
+    result.sort_values('total_dbs_size', ascending=False, inplace=True)
+    result.reset_index(inplace=True)
+    
+    # Bytes to petabytes
+    result['total_dbs_size'] = result['total_dbs_size'] / 1000000000000000
+    result['total_phedex_size'] = result['total_phedex_size'] / 1000000000000000
+    
+    append_report('### Showing TOP 10 most significant campaigns')
+    write_campaigns_to_report(result, 10)
+
+    append_report('#### Total number of campaigns %s' % len(result.index))
+
+def analyse_data_by_site():
+    df = pd.read_csv('campaigns_df.csv')
 
     append_report('## Sites')
 
