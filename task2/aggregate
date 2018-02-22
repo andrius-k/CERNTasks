@@ -2,13 +2,16 @@
 
 # ========== Aggregate PhEDEx data ========== #
 
+# Chnage username in location value 
+location=/cms/users/akirilov/phedex_datasets
+hdir=hdfs://$location
+
 # Copy script file that will be ran
 cp aggregate_phedex.py ../CMSSpark/src/python/CMSSpark/aggregate_phedex.py
 
 # Remove previous data first
-hadoop fs -rm -r /cms/users/akirilov/phedex_datasets
+hadoop fs -rm -r $location
 
-hdir=hdfs:///cms/users/akirilov/phedex_datasets
 PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_phedex.py --fout=$hdir --yarn --verbose --date=20170228
 
 hadoop fs -get $hdir .
@@ -22,13 +25,16 @@ cat phedex_datasets/2017/02/28/part* | grep -v $header >> phedex_df.csv
 
 # ========== Aggregate DBS data ========== #
 
+# Chnage username in location value 
+location=/cms/users/akirilov/dbs_datasets
+hdir=hdfs://$location
+
 # Copy script file that will be ran
 cp aggregate_dbs.py ../CMSSpark/src/python/CMSSpark/aggregate_dbs.py
 
 # Remove previous data first
-hadoop fs -rm -r /cms/users/akirilov/dbs_datasets
+hadoop fs -rm -r $location
 
-hdir=hdfs:///cms/users/akirilov/dbs_datasets
 PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_dbs.py --fout=$hdir --yarn --verbose
 
 hadoop fs -get $hdir .

@@ -1,9 +1,12 @@
 #!/bin/sh
 
-# Remove previous data first
-hadoop fs -rm -r /cms/users/akirilov/datasets
+# Chnage username in location value 
+location=/cms/users/akirilov/datasets
+hdir=hdfs://$location
 
-hdir=hdfs:///cms/users/akirilov/datasets
+# Remove previous data first
+hadoop fs -rm -r $location
+
 PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
 
 hadoop fs -get $hdir .

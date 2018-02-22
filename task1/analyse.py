@@ -21,7 +21,7 @@ result.columns.values[1] = 'sum_size'
 print(result)
 
 # Construct plot
-result.plot(kind='bar', subplots=True, layout=(2,1), figsize=(8, 6), fontsize=5)
+result.plot(kind='bar', subplots=True, layout=(2, 1), figsize=(8, 6), fontsize=5)
 
 # Remove xlabel
 plt.xlabel(' ')
