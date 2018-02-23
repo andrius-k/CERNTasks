@@ -21,8 +21,8 @@ def append_report(lines):
     report = report + '\n'
 
 def write_campaigns_to_report(df, head=0):
-    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | MSS Size (PB) | Second MSS Size (PB) |')
-    append_report('| ------- | ------ | ------ | ------ | ------ | ------ |')
+    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | MSS | Second MSS | MSS Size (PB) | Second MSS Size (PB) |')
+    append_report('| ------- | ------ | ------ | ------ | ------ | ------ | ------ | ------ |')
 
     if head != 0:
         df = df[:head]
@@ -32,8 +32,10 @@ def write_campaigns_to_report(df, head=0):
                       ' | ' + str(round(row['total_phedex_size'], 1)) + 
                       ' | ' + str(round(row['total_dbs_size'], 1)) + 
                       ' | ' + '{:.6f}'.format(float(row['total_phedex_size']/row['total_dbs_size'])) + 
-                      ' | ' + str(round(row['SiteA'], 1)) + 
-                      ' | ' + str(round(row['SiteB'], 1)) + 
+                      ' | ' + row['mss'] + 
+                      ' | ' + row['second_mss'] + 
+                      ' | ' + str(round(row['mss_value'], 1)) + 
+                      ' | ' + str(round(row['second_mss_value'], 1)) + 
                       ' |')
 
 def write_sites_to_report(df, head=0):
@@ -80,47 +82,96 @@ def write_report():
 def commit_report():
     os.system('(cd ../CERNTasks.wiki/; git add -A; git commit -m "Auto-commiting report"; git push origin master)')
 
+def plot_pie_charts(df, file_name):
+    head = df.head(6)
+
+    fig, axes = plt.subplots(2, 3, figsize=(30, 15))
+    for i, (idx, row) in enumerate(head.set_index('campaign').drop(['mss', 'second_mss'], axis=1).iterrows()):
+        ax = axes[i // 3, i % 3]
+        row = row[row.gt(row.sum() * .01)]
+        ax.pie(row, labels=row.index, startangle=30)
+        ax.set_title(idx)
+    
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0.4)
+
+    plot_filepath = PLOTS_PATH + file_name
+    plt.savefig(plot_filepath, dpi=120)
+
+    return plot_filepath
+
 def get_second_max(columns, row):
     list = row[columns].dropna().sort_values()
     return list[len(list) - 2] if len(list) > 1 else float('nan')
+
+def get_second_max_site(columns, row):
+    list = row[columns].dropna().sort_values(ascending=False)
+    if len(list) > 1:
+        if row[row==list[1]].size > 1:
+            return row[row==list[1]].index[1]
+        else:
+            return row[row==list[1]].index[0]
+    else:
+        return '-'
+
+def get_max_site(columns, row):
+    list = row[columns].dropna().sort_values(ascending=False)
+    return row[row==list[0]].index[0]
 
 def analyse_data_by_campaign():
     df = pd.read_csv('campaigns_df.csv')
 
     append_report('## Campaigns')
 
-    append_report('In this table MSS means *Most Significant Site*. This is the site that contains the most amount of that campaigns data.')
-
-    # result = df.groupby('campaign')\
-    #            .agg({'dbs_size': 'sum', 'phedex_size': 'sum', 'campaign': 'count'})
+    append_report('In these tables **MSS** means **Most Significant Site**. This is the site that contains the most amount of that campaign\'s data of all other sites.')
 
     result = pivot_table(df, values='phedex_size', index='campaign', columns='site', aggfunc='sum')
 
     site_columns = result.columns.values
     
-    result['SiteA'] = result[site_columns].max(axis=1)
-    result['SiteB'] = result.apply(lambda x: get_second_max(site_columns, x), axis=1)
+    result['mss'] = result.apply(lambda x: get_max_site(site_columns, x), axis=1)
+    result['second_mss'] = result.apply(lambda x: get_second_max_site(site_columns, x), axis=1)
+    result['mss_value'] = result[site_columns].max(axis=1)
+    result['second_mss_value'] = result.apply(lambda x: get_second_max(site_columns, x), axis=1)
 
-    result = result.drop(site_columns, axis=1)
+    # result = result.drop(site_columns, axis=1)
 
     total_sizes_df = df.groupby('campaign', as_index=False)\
                         .agg({'phedex_size': 'sum', 'dbs_size': 'sum'})\
                         .rename(columns={'phedex_size': 'total_phedex_size', 'dbs_size': 'total_dbs_size'})
 
     result = total_sizes_df.join(result, on='campaign')
-
-    # result.rename(columns={'campaign': 'count'}, inplace=True)
+    
     result.sort_values('total_dbs_size', ascending=False, inplace=True)
     result.reset_index(inplace=True)
     
     # Bytes to petabytes
     result['total_dbs_size'] = result['total_dbs_size'] / 1000000000000000
     result['total_phedex_size'] = result['total_phedex_size'] / 1000000000000000
-    result['SiteA'] = result['SiteA'] / 1000000000000000
-    result['SiteB'] = result['SiteB'] / 1000000000000000
+    result['mss_value'] = result['mss_value'] / 1000000000000000
+    result['second_mss_value'] = result['second_mss_value'] / 1000000000000000
     
-    append_report('### Showing TOP 10 most significant campaigns')
+    append_report('### Showing TOP 10 most significant campaigns by DBS size')
     write_campaigns_to_report(result, 10)
+
+    # Make pie chart of sites for most significant DBS campaigns
+    plot_filepath = plot_pie_charts(result, 'dbs_size_campaigns_plot.jpg')
+
+    append_report('### Plot of 6 most significant DBS campaigns')
+    append_report('Each pie chart visualises the size of campaign data in each data site that campaign is present.')
+    append_report('[[images/' + plot_filepath + ']]')
+
+    result.sort_values('total_phedex_size', ascending=False, inplace=True)
+
+    append_report('### Showing TOP 10 most significant campaigns by PhEDEx size')
+    write_campaigns_to_report(result, 10)
+
+    # Make pie chart of sites for most significant PhEDEx campaigns
+    plot_filepath = plot_pie_charts(result, 'phedex_size_campaigns_plot.jpg')
+
+    append_report('### Plot of 6 most significant PhEDEx campaigns')
+    append_report('Each pie chart visualises the size of campaign data in each data site that campaign is present.')
+    append_report('[[images/' + plot_filepath + ']]')
 
     append_report('#### Total number of campaigns %s' % len(result.index))
 
@@ -135,7 +186,7 @@ def analyse_data_by_site():
     result.rename(columns={'campaign': 'campaign_count'}, inplace=True)
     result.sort_values('campaign_count', ascending=False, inplace=True)
 
-    append_report('### Showing TOP 10 most significant sites')
+    append_report('### Showing TOP 10 most significant sites by campaign count')
     write_sites_to_report(result, 10)
 
     append_report('#### Total number of sites %s' % len(result.index))
@@ -145,11 +196,11 @@ def analyse_data_by_site():
 
     plt.xticks(rotation=45, horizontalalignment='right')
     plt.tight_layout()
-    plot_filename = PLOTS_PATH + 'site_count_plot.jpg'
-    plt.savefig(plot_filename, dpi=120)
+    plot_filepath = PLOTS_PATH + 'site_count_plot.jpg'
+    plt.savefig(plot_filepath, dpi=120)
 
     append_report('### Plot')
-    append_report('[[images/' + plot_filename + ']]')
+    append_report('[[images/' + plot_filepath + ']]')
 
     # Move plot files to wiki repo
     copy_directory(PLOTS_PATH, '../CERNTasks.wiki/images/' + PLOTS_PATH)
