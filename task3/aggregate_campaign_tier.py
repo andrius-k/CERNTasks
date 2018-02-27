@@ -112,7 +112,7 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     fdf_df = fdf.select(dbs_fdf_cols)
     ddf_df = ddf.select(dbs_ddf_cols)
     
-    # dataset, size
+    # dataset, dbs_size
     dbs_df = fdf_df.join(ddf_df, fdf_df.f_dataset_id == ddf_df.d_dataset_id)\
                    .drop('f_dataset_id')\
                    .drop('d_dataset_id')\
@@ -121,9 +121,9 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                    .groupBy('dataset')\
                    .agg({'size':'sum'})\
                    .withColumnRenamed('sum(size)', 'dbs_size')
-    
+
     # PhEDEx
-    # dataset, size
+    # dataset, phedex_size
     phedex_cols = ['dataset_name', 'block_bytes']
     phedex_df = phedex.select(phedex_cols)\
                       .withColumnRenamed('dataset_name', 'dataset')\
@@ -132,10 +132,11 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                       .agg({'size':'sum'})\
                       .withColumnRenamed('sum(size)', 'phedex_size')
 
-    # dataset, size (DBS and PhEDEx)
+    # dataset, dbs_size, phedex_size
     result = phedex_df.join(dbs_df, phedex_df.dataset == dbs_df.dataset)\
                       .drop(dbs_df.dataset)
 
+    # dataset, size
     result = result.withColumn('size', result.dbs_size + result.phedex_size)\
                    .drop(result.dbs_size)\
                    .drop(result.phedex_size)

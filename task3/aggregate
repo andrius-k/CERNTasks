@@ -1,25 +1,25 @@
 #!/bin/sh
 
-# # Chnage username in location value 
-# location=/cms/users/akirilov/campaigns
-# hdir=hdfs://$location
+# Chnage username in location value 
+location=/cms/users/akirilov/campaigns
+hdir=hdfs://$location
 
-# # Copy script file that will be ran
-# cp aggregate_campaigns.py ../CMSSpark/src/python/CMSSpark/aggregate_campaigns.py
+# Copy script file that will be ran
+cp aggregate_campaigns.py ../CMSSpark/src/python/CMSSpark/aggregate_campaigns.py
 
-# # Remove previous data first
-# hadoop fs -rm -r $location
+# Remove previous data first
+hadoop fs -rm -r $location
 
-# PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_campaigns.py --fout=$hdir --yarn --verbose --date=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_campaigns.py --fout=$hdir --yarn --verbose --date=20170228
 
-# hadoop fs -get $hdir .
+hadoop fs -get $hdir .
 
-# # extract header
-# head -1 campaigns/part-00000 > campaigns_df.csv
+# extract header
+head -1 campaigns/part-00000 > campaigns_df.csv
 
-# # concatenate all parts except header
-# header=`cat campaigns_df.csv`
-# cat campaigns/part* | grep -v $header >> campaigns_df.csv
+# concatenate all parts except header
+header=`cat campaigns_df.csv`
+cat campaigns/part* | grep -v $header >> campaigns_df.csv
 
 # =================== Campaign Tier Relationship =================== #
 
