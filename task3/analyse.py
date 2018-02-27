@@ -21,7 +21,7 @@ def append_report(lines):
     report = report + '\n'
 
 def write_campaigns_to_report(df, head=0):
-    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | MSS | Second MSS | MSS Size (PB) | Second MSS Size (PB) |')
+    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | Most Significant Site | Second Most Significant Site | Most Significant Site Size (PB) | Second Most Significant Site Size (PB) |')
     append_report('| ------- | ------ | ------ | ------ | ------ | ------ | ------ | ------ |')
 
     if head != 0:
@@ -36,6 +36,19 @@ def write_campaigns_to_report(df, head=0):
                       ' | ' + row['second_mss'] + 
                       ' | ' + str(round(row['mss_value'], 1)) + 
                       ' | ' + str(round(row['second_mss_value'], 1)) + 
+                      ' |')
+        
+def write_campaign_tier_relationship_to_report(df, head=0):
+    append_report('| Campaign | Tier | Size (PB) |')
+    append_report('| ------- | ------ | ------ |')
+
+    if head != 0:
+        df = df[:head]
+
+    for index, row in df.iterrows():
+        append_report('| ' + row['campaign'] + 
+                      ' | ' + row['tier'] + 
+                      ' | ' + str(round(row['size'], 1)) + 
                       ' |')
 
 def write_sites_to_report(df, head=0):
@@ -123,7 +136,14 @@ def analyse_data_by_campaign():
 
     append_report('## Campaigns')
 
-    append_report('In these tables **MSS** means **Most Significant Site**. This is the site that contains the most amount of that campaign\'s data of all other sites.')
+    result = df
+
+    # Remove part of site after third underscore
+    result['site'] = df.apply (lambda row: row['site'] if row['site'].count('_') < 3 else row['site'][:row['site'].rfind('_')], axis=1)
+
+    # result = result.groupby(['campaign', 'whole_site'])\
+    #                .agg({'phedex_size': 'sum', 'dbs_size': 'sum'})\
+    #                .rename(columns={'whole_site': 'site'})
 
     result = pivot_table(df, values='phedex_size', index='campaign', columns='site', aggfunc='sum')
 
@@ -141,7 +161,7 @@ def analyse_data_by_campaign():
                         .rename(columns={'phedex_size': 'total_phedex_size', 'dbs_size': 'total_dbs_size'})
 
     result = total_sizes_df.join(result, on='campaign')
-    
+
     result.sort_values('total_dbs_size', ascending=False, inplace=True)
     result.reset_index(inplace=True)
     
@@ -180,6 +200,11 @@ def analyse_data_by_site():
 
     append_report('## Sites')
 
+    result = df
+
+    # Remove part of site after third underscore
+    result['site'] = df.apply (lambda row: row['site'] if row['site'].count('_') < 3 else row['site'][:row['site'].rfind('_')], axis=1)
+
     result = df.groupby('site')\
                .agg({'campaign': 'count'})
 
@@ -205,6 +230,33 @@ def analyse_data_by_site():
     # Move plot files to wiki repo
     copy_directory(PLOTS_PATH, '../CERNTasks.wiki/images/' + PLOTS_PATH)
 
+def analyse_campaign_tier_relationship():
+    df = pd.read_csv('campaign_tier_df.csv')
+
+    append_report('## Campaign sizes in data tiers')
+
+    append_report('### Showing TOP 10 most significant campaign - tier pairs')
+
+    result = df
+
+    result['campaign'] = result['dataset'].str.split('/').str[2]
+    result['tier'] = result['dataset'].str.split('/').str[3]
+
+    result = result.groupby(['campaign', 'tier'])\
+                   .agg({'size': 'sum'})\
+                   .sort_values(by='size', ascending=False)\
+                   .reset_index()
+            
+    # Bytes to petabytes
+    result['size'] = result['size'] / 1000000000000000 
+
+    write_campaign_tier_relationship_to_report(result, 10)
+
+    total_size = result['size'].sum()
+
+    append_report('#### Total number of campaign - tier pairs %s' % len(result.index))
+    append_report('#### Total sum of sizes %d PB' % total_size)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--commit", action="store_true",
@@ -218,6 +270,7 @@ def main():
   
     analyse_data_by_campaign()
     analyse_data_by_site()
+    analyse_campaign_tier_relationship()
 
     write_report()
 
