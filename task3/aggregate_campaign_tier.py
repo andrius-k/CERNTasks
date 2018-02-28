@@ -105,61 +105,6 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     ocf = tables['ocf']
     rvf = tables['rvf']
 
-    # print 'daf'
-    # df = daf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'ddf'
-    # df = ddf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'bdf'
-    # df = bdf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'fdf'
-    # df = fdf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'aef'
-    # df = aef.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'pef'
-    # df = pef.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'mcf'
-    # df = mcf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'ocf'
-    # df = ocf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-
-    # print 'rvf'
-    # df = rvf.select(['*'])
-    # print df.schema
-    # for name, dtype in df.dtypes:
-    #     print(name, dtype)
-    # return
-
     # DBS
     dbs_fdf_cols = ['f_dataset_id', 'f_file_size']
     dbs_ddf_cols = ['d_dataset_id', 'd_dataset', 'd_dataset_access_type_id']
