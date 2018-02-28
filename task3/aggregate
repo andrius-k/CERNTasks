@@ -1,7 +1,9 @@
 #!/bin/sh
 
+# =========================== Campaigns =========================== #
+
 # Chnage username in location value 
-location=/cms/users/akirilov/campaigns
+location=/cms/users/$USER/campaigns
 hdir=hdfs://$location
 
 # Copy script file that will be ran
@@ -23,7 +25,7 @@ cat campaigns/part* | grep -v $header >> campaigns_df.csv
 
 # =================== Campaign Tier Relationship =================== #
 
-location=/cms/users/akirilov/campaign_tier
+location=/cms/users/$USER/campaign_tier
 hdir=hdfs://$location
 
 # Copy script file that will be ran

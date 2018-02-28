@@ -98,20 +98,29 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     extract_campaign_udf = udf(lambda dataset: dataset.split('/')[2])
 
     dbs_fdf_cols = ['f_dataset_id', 'f_file_size']
-    dbs_ddf_cols = ['d_dataset_id', 'd_dataset', ]
+    dbs_ddf_cols = ['d_dataset_id', 'd_dataset', 'd_dataset_access_type_id']
+    dbs_daf_cols = ['dataset_access_type_id', 'dataset_access_type']
 
     fdf_df = fdf.select(dbs_fdf_cols)
     ddf_df = ddf.select(dbs_ddf_cols)
+    daf_df = daf.select(dbs_daf_cols)
 
-    # dataset, size
+    # dataset, size, dataset_access_type_id
     dbs_df = fdf_df.join(ddf_df, fdf_df.f_dataset_id == ddf_df.d_dataset_id)\
                    .drop('f_dataset_id')\
                    .drop('d_dataset_id')\
                    .withColumnRenamed('d_dataset', 'dataset')\
-                   .withColumnRenamed('f_file_size', 'size')
+                   .withColumnRenamed('f_file_size', 'size')\
+                   .withColumnRenamed('d_dataset_access_type_id', 'dataset_access_type_id')
+
+    # dataset, size, dataset_access_type
+    dbs_df = dbs_df.join(daf_df, dbs_df.dataset_access_type_id == daf_df.dataset_access_type_id)\
+                   .drop(dbs_df.dataset_access_type_id)\
+                   .drop(daf_df.dataset_access_type_id)
 
     # 1. campaign, dbs_size
-    dbs_df = dbs_df.withColumn('campaign', extract_campaign_udf(dbs_df.dataset))\
+    dbs_df = dbs_df.where(dbs_df.dataset_access_type == 'VALID')\
+                   .withColumn('campaign', extract_campaign_udf(dbs_df.dataset))\
                    .groupBy(['campaign'])\
                    .agg({'size':'sum'})\
                    .withColumnRenamed('sum(size)', 'dbs_size')\

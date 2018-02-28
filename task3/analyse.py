@@ -39,8 +39,8 @@ def write_campaigns_to_report(df, head=0):
                       ' |')
         
 def write_campaign_tier_relationship_to_report(df, head=0):
-    append_report('| Campaign | Tier | Size (PB) |')
-    append_report('| ------- | ------ | ------ |')
+    append_report('| Campaign | Tier | DBS Size (PB) | PhEDEx Size (PB) | Ratio |')
+    append_report('| ------- | ------ | ------ | ------ | ------ |')
 
     if head != 0:
         df = df[:head]
@@ -48,7 +48,9 @@ def write_campaign_tier_relationship_to_report(df, head=0):
     for index, row in df.iterrows():
         append_report('| ' + row['campaign'] + 
                       ' | ' + row['tier'] + 
-                      ' | ' + str(round(row['size'], 1)) + 
+                      ' | ' + str(round(row['dbs_size'], 1)) + 
+                      ' | ' + str(round(row['phedex_size'], 1)) + 
+                      ' | ' + '{:.6f}'.format(float(row['phedex_size']/row['dbs_size'])) + 
                       ' |')
 
 def write_sites_to_report(df, head=0):
@@ -206,7 +208,7 @@ def analyse_data_by_site():
     result['site'] = df.apply (lambda row: row['site'] if row['site'].count('_') < 3 else row['site'][:row['site'].rfind('_')], axis=1)
 
     result = df.groupby('site')\
-               .agg({'campaign': 'count'})
+               .agg({'campaign': 'nunique'})
 
     result.rename(columns={'campaign': 'campaign_count'}, inplace=True)
     result.sort_values('campaign_count', ascending=False, inplace=True)
@@ -243,19 +245,22 @@ def analyse_campaign_tier_relationship():
     result['tier'] = result['dataset'].str.split('/').str[3]
 
     result = result.groupby(['campaign', 'tier'])\
-                   .agg({'size': 'sum'})\
-                   .sort_values(by='size', ascending=False)\
+                   .agg({'dbs_size': 'sum', 'phedex_size': 'sum'})\
+                   .sort_values(by='dbs_size', ascending=False)\
                    .reset_index()
             
     # Bytes to petabytes
-    result['size'] = result['size'] / 1000000000000000 
+    result['dbs_size'] = result['dbs_size'] / 1000000000000000 
+    result['phedex_size'] = result['phedex_size'] / 1000000000000000 
 
-    write_campaign_tier_relationship_to_report(result, 10)
+    write_campaign_tier_relationship_to_report(result, 20)
 
-    total_size = result['size'].sum()
+    total_dbs_size = result['dbs_size'].sum()
+    total_phedex_size = result['phedex_size'].sum()
 
     append_report('#### Total number of campaign - tier pairs %s' % len(result.index))
-    append_report('#### Total sum of sizes %d PB' % total_size)
+    append_report('#### Total DBS sum of sizes %d PB' % total_dbs_size)
+    append_report('#### Total PhEDEx sum of sizes %d PB' % total_phedex_size)
 
 def main():
     parser = argparse.ArgumentParser()

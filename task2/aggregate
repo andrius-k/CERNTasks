@@ -3,7 +3,7 @@
 # ========== Aggregate PhEDEx data ========== #
 
 # Chnage username in location value 
-location=/cms/users/akirilov/phedex_datasets
+location=/cms/users/$USER/phedex_datasets
 hdir=hdfs://$location
 
 # Copy script file that will be ran
@@ -26,7 +26,7 @@ cat phedex_datasets/2017/02/28/part* | grep -v $header >> phedex_df.csv
 # ========== Aggregate DBS data ========== #
 
 # Chnage username in location value 
-location=/cms/users/akirilov/dbs_datasets
+location=/cms/users/$USER/dbs_datasets
 hdir=hdfs://$location
 
 # Copy script file that will be ran
