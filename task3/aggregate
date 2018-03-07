@@ -1,7 +1,9 @@
 #!/bin/sh
 
+date=$1
+
 # Aggregate campaigns
-aggregate_campaigns
+./aggregate_campaigns $date
 
 # Aggregate campaign - tier relationship
-aggregate_campaign_tier
+./aggregate_campaign_tier $date

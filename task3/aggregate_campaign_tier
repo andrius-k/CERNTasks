@@ -1,5 +1,22 @@
 #!/bin/sh
 
+# Parse date argument
+date=20170228
+
+if [[ -n $1 ]]
+then
+    date=$1
+fi
+
+date_length=${#date}
+if [[ $date_length != 8 ]]
+then
+    echo 'Invalid date. Example: 20170228'
+    exit
+fi
+
+echo 'Aggregating for date: '$date
+
 # Chnage username in location value 
 location=/cms/users/$USER/campaign_tier
 hdir=hdfs://$location
@@ -10,7 +27,7 @@ cp aggregate_campaign_tier.py ../CMSSpark/src/python/CMSSpark/aggregate_campaign
 # Remove previous data first
 hadoop fs -rm -r $location
 
-PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_campaign_tier.py --fout=$hdir --yarn --verbose --date=20170228
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_campaign_tier.py --fout=$hdir --yarn --verbose --date=$date
 
 hadoop fs -get $hdir .
 

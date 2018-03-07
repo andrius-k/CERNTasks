@@ -21,6 +21,8 @@ from CMSSpark.spark_utils import dbs_tables, phedex_tables, print_rows
 from CMSSpark.spark_utils import spark_context, split_dataset
 from CMSSpark.utils import elapsed_time
 
+LIMIT = 100
+
 class OptionParser():
     def __init__(self):
         "User based option parser"
@@ -63,15 +65,8 @@ def quiet_logs(sc):
     """
     Sets logger's level to ERROR so INFO logs would not show up.
     """
-    print('Will set log level to ERROR')
     logger = sc._jvm.org.apache.log4j
     logger.LogManager.getRootLogger().setLevel(logger.Level.ERROR)
-    print('Did set log level to ERROR')
-
-def extract_campaign(dataset):
-    print dataset
-    print type(dataset)
-    return dataset.split('/')[2]
 
 def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, inst='GLOBAL'):
     """
@@ -97,13 +92,7 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     
     daf = tables['daf']
     ddf = tables['ddf']
-    bdf = tables['bdf']
     fdf = tables['fdf']
-    aef = tables['aef']
-    pef = tables['pef']
-    mcf = tables['mcf']
-    ocf = tables['ocf']
-    rvf = tables['rvf']
 
     # DBS
     dbs_fdf_cols = ['f_dataset_id', 'f_file_size']
@@ -147,9 +136,27 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     result = phedex_df.join(dbs_df, phedex_df.dataset == dbs_df.dataset)\
                       .drop(dbs_df.dataset)
 
+    extract_campaign_udf = udf(lambda dataset: dataset.split('/')[2])
+    extract_tier_udf = udf(lambda dataset: dataset.split('/')[3])
+
+    # campaign, tier, dbs_size, phedex_size
+    result = result.withColumn('campaign', extract_campaign_udf(result.dataset))\
+                   .withColumn('tier', extract_tier_udf(result.dataset))\
+                   .drop('dataset')\
+                   .groupBy(['campaign', 'tier'])\
+                   .agg({'dbs_size':'sum', 'phedex_size': 'sum'})\
+                   .withColumnRenamed('sum(dbs_size)', 'dbs_size')\
+                   .withColumnRenamed('sum(phedex_size)', 'phedex_size')
+
+    # campaign, tier, dbs_size, phedex_size
+    result = result.withColumn('sum_size', result.dbs_size + result.phedex_size)
+    result = result.orderBy(result.sum_size, ascending=False)\
+                   .drop('sum_size')\
+                   .limit(LIMIT)
+    
     # write out results back to HDFS, the fout parameter defines area on HDFS
     # it is either absolute path or area under /user/USERNAME
-    if  fout:
+    if fout:
         result.write.format("com.databricks.spark.csv")\
                     .option("header", "true").save(fout)
 

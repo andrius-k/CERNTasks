@@ -34,13 +34,11 @@ In order to retrieve and aggregate PhEDEx and DBS data please run `./aggregate`
 
 ### Analysing data
 
-In order to analyze data please run `python analyse.py`. This will generate all plots and push automatically generated report to wiki page: https://github.com/andrius-k/CERNTasks/wiki/Phedex_DBS_Reports
+In order to analyse data and create report please run `python analyse.py`. This will prepare all tables and plots and will generate the report. Report will be placed here locally: `CMSTasks.wiki/CMS_Reports.md`
 
 ### How to automatically commit report
 
-If `--commit` argument is passed to `analyse.py` script, automatically generated report will be commited to wiki of this repository. This requires authentication.
-
-Automatically generated report will be placed here: `CMSTasks.wiki/CMS_Reports.md`
+If `--commit` argument is passed to `analyse.py` script, automatically generated report will be commited to wiki of this repository. This requires authentication. After successful commit report will be available here: https://github.com/andrius-k/CERNTasks/wiki/CMS_Reports
 
 ## Running task 3
 
@@ -48,12 +46,10 @@ Automatically generated report will be placed here: `CMSTasks.wiki/CMS_Reports.m
 
 In order to retrieve and aggregate PhEDEx and DBS campaign data please run `./aggregate`
 
-### Analysing data
+### Visualizing data
 
-In order to analyze data please run `python analyse.py`. This will generate all plots and push automatically generated report to wiki page: https://github.com/andrius-k/CERNTasks/wiki/CMS_Campaign_Reports
+In order to visualize data please run `python visualize.py`. This will prepare all tables and plots and will generate the report. Report will be placed here locally: `CMSTasks.wiki/CMS_Campaign_Reports.md`
 
 ### How to automatically commit report
 
-If `--commit` argument is passed to `analyse.py` script, automatically generated report will be commited to wiki of this repository. This requires authentication.
-
-Automatically generated report will be placed here: `CMSTasks.wiki/CMS_Campaign_Reports.md`
+If `--commit` argument is passed to `visualize.py` script, automatically generated report will be commited to wiki of this repository. This requires authentication. After successful commit report will be available here: https://github.com/andrius-k/CERNTasks/wiki/CMS_Campaign_Reports

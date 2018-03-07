@@ -15,11 +15,15 @@ from types import NoneType
 from pyspark import SparkContext, StorageLevel
 from pyspark.sql import HiveContext
 from pyspark.sql.functions import udf
+from pyspark.sql.functions import struct, array
+from pyspark.sql.types import IntegerType, LongType, StringType, StructType, StructField
 
 # CMSSpark modules
 from CMSSpark.spark_utils import dbs_tables, phedex_tables, print_rows
 from CMSSpark.spark_utils import spark_context, split_dataset
 from CMSSpark.utils import elapsed_time
+
+LIMIT = 100
 
 class OptionParser():
     def __init__(self):
@@ -60,18 +64,34 @@ class OptionParser():
             dest="date", default="", help='Select CMSSW data for specific date (YYYYMMDD)')
 
 def extract_campaign(dataset):
-    print dataset
-    print type(dataset)
     return dataset.split('/')[2]
 
 def quiet_logs(sc):
     """
     Sets logger's level to ERROR so INFO logs would not show up.
     """
-    print('Will set log level to ERROR')
     logger = sc._jvm.org.apache.log4j
     logger.LogManager.getRootLogger().setLevel(logger.Level.ERROR)
-    print('Did set log level to ERROR')
+
+def get_mss(row):
+    sorted_values = sorted([x for x in row if x != None], reverse=True)
+    return sorted_values[0]
+
+def get_second_mss(row):
+    sorted_values = sorted([x for x in row if x != None], reverse=True)
+    return sorted_values[1] if len(sorted_values) > 1 else None
+    
+def get_mss_name(row, sites_columns):
+    list_of_values = [x for x in row]
+    tuples = zip(list_of_values, sites_columns)
+    tuples = sorted([x for x in tuples if x[0] != None], key=lambda x: x[0], reverse=True)
+    return tuples[0][1]
+
+def get_second_mss_name(row, sites_columns):
+    list_of_values = [x for x in row]
+    tuples = zip(list_of_values, sites_columns)
+    tuples = sorted([x for x in tuples if x[0] != None], key=lambda x: x[0], reverse=True)
+    return tuples[1][1] if len(tuples) > 1 else None
 
 def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, inst='GLOBAL'):
     """
@@ -97,15 +117,7 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     
     daf = tables['daf']
     ddf = tables['ddf']
-    bdf = tables['bdf']
     fdf = tables['fdf']
-    aef = tables['aef']
-    pef = tables['pef']
-    mcf = tables['mcf']
-    ocf = tables['ocf']
-    rvf = tables['rvf']
-
-    print("### ddf from main", ddf)
 
     extract_campaign_udf = udf(lambda dataset: dataset.split('/')[2])
 
@@ -116,6 +128,8 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     fdf_df = fdf.select(dbs_fdf_cols)
     ddf_df = ddf.select(dbs_ddf_cols)
     daf_df = daf.select(dbs_daf_cols)
+
+    # Aggregate by campaign and find total PhEDEx and DBS size of each campaign
 
     # dataset, size, dataset_access_type_id
     dbs_df = fdf_df.join(ddf_df, fdf_df.f_dataset_id == ddf_df.d_dataset_id)\
@@ -138,37 +152,70 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                    .withColumnRenamed('sum(size)', 'dbs_size')\
                    .drop('dataset')
 
-    # 2. campaign, phedex_size, site
-    phedex_cols = ['dataset_name', 'block_bytes', 'node_name']
+    # 2. campaign, phedex_size
+    phedex_cols = ['dataset_name', 'block_bytes']
     phedex_df = phedex.select(phedex_cols)
     phedex_df = phedex_df.withColumn('campaign', extract_campaign_udf(phedex_df.dataset_name))\
-                .groupBy(['campaign', 'node_name'])\
+                .groupBy(['campaign'])\
                 .agg({'block_bytes':'sum'})\
-                .withColumnRenamed('sum(block_bytes)', 'phedex_size')\
-                .withColumnRenamed('node_name', 'site')
+                .withColumnRenamed('sum(block_bytes)', 'phedex_size')
 
-    # 3. campaign, dbs_size, phedex_size, site
-    # This join will produce duplicated DBS results. When counting total DBS size
-    # just take first element from each campaign group!
+    # 3. campaign, dbs_size, phedex_size
     dbs_phedex_df = dbs_df.join(phedex_df, dbs_df.campaign == phedex_df.campaign)\
                           .drop(dbs_df.campaign)
 
-    # 4. campaign, total_dbs_size, total_phedex_size
-    total_sizes_df = dbs_phedex_df.groupBy('campaign')\
-                                  .agg({'dbs_size':'sum', 'phedex_size':'sum'})\
-                                  .withColumnRenamed('sum(dbs_size)', 'total_dbs_size')\
-                                  .withColumnRenamed('sum(phedex_size)', 'total_phedex_size')
+    # Select campaign - site pairs and their sizes (from PhEDEx)
 
-    # 5. campaign, dbs_size, phedex_size, total_dbs_size, total_phedex_size, site
-    result = dbs_phedex_df.join(total_sizes_df, dbs_phedex_df.campaign == total_sizes_df.campaign)\
-                          .drop(total_sizes_df.campaign)\
-                          .select('campaign', 'dbs_size', 'phedex_size', 'total_dbs_size', 'total_phedex_size', 'site')
+    # 1. campaign, site, size
+    phedex_cols = ['dataset_name', 'node_name', 'block_bytes']
+    campaign_site_df = phedex.select(phedex_cols)
+    campaign_site_df = campaign_site_df.withColumn('campaign', extract_campaign_udf(campaign_site_df.dataset_name))\
+                .groupBy(['campaign', 'node_name'])\
+                .agg({'block_bytes':'sum'})\
+                .withColumnRenamed('sum(block_bytes)', 'size')\
+                .withColumnRenamed('node_name', 'site')
+
+    # Find two most significant sites for each campaign
+
+    columns_before_pivot = campaign_site_df.columns
+
+    result = campaign_site_df.groupBy(['campaign'])\
+                             .pivot('site')\
+                             .sum('size')
+    
+    columns_after_pivot = result.columns
+    sites_columns = [x for x in columns_after_pivot if x not in columns_before_pivot]
+
+    number_of_sites_udf = udf(lambda row: len([x for x in row if x != None]), IntegerType())
+    mss_udf = udf(get_mss, LongType())
+    second_mss_udf = udf(get_second_mss, LongType())
+    mss_name_udf = udf(lambda row: get_mss_name(row, sites_columns), StringType())
+    second_mss_name_udf = udf(lambda row: get_second_mss_name(row, sites_columns), StringType())
+
+    result = result.withColumn('sites', number_of_sites_udf(struct([result[x] for x in sites_columns])))
+    result = result.withColumn('mss', mss_udf(struct([result[x] for x in sites_columns])))
+    result = result.withColumn('mss_name', mss_name_udf(struct([result[x] for x in sites_columns])))
+    result = result.withColumn('second_mss', second_mss_udf(struct([result[x] for x in sites_columns])))
+    result = result.withColumn('second_mss_name', second_mss_name_udf(struct([result[x] for x in sites_columns])))
+
+    for site_column in sites_columns:
+        result = result.drop(site_column)
+
+    # campaign, phedex_size, dbs_size, mss, mss_name, second_mss, second_mss_name, sites    
+    result = result.join(dbs_phedex_df, result.campaign == dbs_phedex_df.campaign)\
+                   .drop(result.campaign)
+
+    sorted_by_phedex = result.orderBy(result.phedex_size, ascending=False).limit(LIMIT)
+    sorted_by_dbs = result.orderBy(result.dbs_size, ascending=False).limit(LIMIT)
     
     # write out results back to HDFS, the fout parameter defines area on HDFS
     # it is either absolute path or area under /user/USERNAME
-    if  fout:
-        result.write.format("com.databricks.spark.csv")\
-                    .option("header", "true").save(fout)
+    if fout:
+        sorted_by_phedex.write.format("com.databricks.spark.csv")\
+                              .option("header", "true").save('%s/phedex' % fout)
+        
+        sorted_by_dbs.write.format("com.databricks.spark.csv")\
+                           .option("header", "true").save('%s/dbs' % fout)
 
     ctx.stop()
 
