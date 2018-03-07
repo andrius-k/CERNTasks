@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Chnage username in location value 
+location=/cms/users/$USER/campaigns
+hdir=hdfs://$location
+
+# Copy script file that will be ran
+cp aggregate_remote.py ../CMSSpark/src/python/CMSSpark/aggregate_remote.py
+
+# Remove previous data first
+hadoop fs -rm -r $location
+
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_remote.py --fout=$hdir --yarn --verbose --date=20170228
+
+hadoop fs -get $hdir .
+
+# Extract PhEDEx header
+head -1 campaigns/phedex/part-00000 > campaigns_phedex_df.csv
+
+# Concatenate all PhEDEx parts except header
+header=`cat campaigns_phedex_df.csv`
+cat campaigns/phedex/part* | grep -v $header >> campaigns_phedex_df.csv
+
+# Extract DBS header
+head -1 campaigns/dbs/part-00000 > campaigns_dbs_df.csv
+
+# Concatenate all DBS parts except header
+header=`cat campaigns_dbs_df.csv`
+cat campaigns/dbs/part* | grep -v $header >> campaigns_dbs_df.csv

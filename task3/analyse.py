@@ -31,7 +31,7 @@ def write_campaigns_to_report(df, head=0):
         append_report('| ' + row['campaign'] + 
                       ' | ' + str(round(row['total_phedex_size'], 1)) + 
                       ' | ' + str(round(row['total_dbs_size'], 1)) + 
-                      ' | ' + '{:.6f}'.format(float(row['total_phedex_size']/row['total_dbs_size'])) + 
+                      ' | ' + '{:.2f}'.format(float(row['total_phedex_size']/row['total_dbs_size'])) + 
                       ' | ' + row['mss'] + 
                       ' | ' + row['second_mss'] + 
                       ' | ' + str(round(row['mss_value'], 1)) + 
@@ -61,7 +61,9 @@ def write_sites_to_report(df, head=0):
         df = df[:head]
 
     for index, row in df.iterrows():
-        append_report('| ' + index + ' | '+ str(int(row['campaign_count'])) + ' |')
+        append_report('| ' + index + 
+                      ' | ' + str(int(row['campaign_count'])) + 
+                      ' |')
 
 def copy_directory(src, dest):
     dest_dir = os.path.dirname(dest)
@@ -84,10 +86,9 @@ def create_plot_dirs():
     if not os.path.exists(PLOTS_PATH):
         os.makedirs(PLOTS_PATH)
 
-def read_report_template():
-    global report
-    with open('../campaign_aggregation_template.md') as f:
-        report = f.read()
+def append_report_header():
+    append_report('# PhEDEx and DBS data aggregation based on campaigns for data from 2017-02-28')
+    append_report('Results of gathering PhEDEx and DBS information aggregated by campaign')
 
 def write_report():
     global report
@@ -143,10 +144,6 @@ def analyse_data_by_campaign():
     # Remove part of site after third underscore
     result['site'] = df.apply (lambda row: row['site'] if row['site'].count('_') < 3 else row['site'][:row['site'].rfind('_')], axis=1)
 
-    # result = result.groupby(['campaign', 'whole_site'])\
-    #                .agg({'phedex_size': 'sum', 'dbs_size': 'sum'})\
-    #                .rename(columns={'whole_site': 'site'})
-
     result = pivot_table(df, values='phedex_size', index='campaign', columns='site', aggfunc='sum')
 
     site_columns = result.columns.values
@@ -156,10 +153,10 @@ def analyse_data_by_campaign():
     result['mss_value'] = result[site_columns].max(axis=1)
     result['second_mss_value'] = result.apply(lambda x: get_second_max(site_columns, x), axis=1)
 
-    # result = result.drop(site_columns, axis=1)
-
+    # When aggregating dbs_size take just first value instead of sum so avoid duplication.
+    # Each DBS size with the same campaign is a duplicate!
     total_sizes_df = df.groupby('campaign', as_index=False)\
-                        .agg({'phedex_size': 'sum', 'dbs_size': 'sum'})\
+                        .agg({'phedex_size': 'sum', 'dbs_size': 'first'})\
                         .rename(columns={'phedex_size': 'total_phedex_size', 'dbs_size': 'total_dbs_size'})
 
     result = total_sizes_df.join(result, on='campaign')
@@ -181,7 +178,7 @@ def analyse_data_by_campaign():
 
     append_report('### Plot of 6 most significant DBS campaigns')
     append_report('Each pie chart visualises the size of campaign data in each data site that campaign is present.')
-    append_report('[[images/' + plot_filepath + ']]')
+    append_report('![6 most significant DBS campaigns](images/%s)' % plot_filepath)
 
     result.sort_values('total_phedex_size', ascending=False, inplace=True)
 
@@ -193,8 +190,10 @@ def analyse_data_by_campaign():
 
     append_report('### Plot of 6 most significant PhEDEx campaigns')
     append_report('Each pie chart visualises the size of campaign data in each data site that campaign is present.')
-    append_report('[[images/' + plot_filepath + ']]')
+    append_report('![6 most significant PhEDEx campaigns](images/%s)' % plot_filepath)
 
+    append_report('#### Total DBS data size: %d PB' % result['total_dbs_size'].sum())
+    append_report('#### Total PhEDEx data size: %d PB' % result['total_phedex_size'].sum())
     append_report('#### Total number of campaigns %s' % len(result.index))
 
 def analyse_data_by_site():
@@ -227,7 +226,7 @@ def analyse_data_by_site():
     plt.savefig(plot_filepath, dpi=120)
 
     append_report('### Plot')
-    append_report('[[images/' + plot_filepath + ']]')
+    append_report('![Site count](images/' + plot_filepath + ')')
 
     # Move plot files to wiki repo
     copy_directory(PLOTS_PATH, '../CERNTasks.wiki/images/' + PLOTS_PATH)
@@ -271,7 +270,7 @@ def main():
     opts = parser.parse_args()
 
     create_plot_dirs()
-    read_report_template()
+    append_report_header()
   
     analyse_data_by_campaign()
     analyse_data_by_site()

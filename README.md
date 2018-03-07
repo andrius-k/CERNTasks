@@ -6,13 +6,15 @@ Various CMS data aggregation related tasks.
 
 after cloning please run `./init`. This will clone `CMSSpark` dependency which is required to run scripts in this repository. This will also clone wiki repository for submitting automatic reports.
 
-Afterwards please go to file `CMSSpark/src/python/CMSSpark/phedex.py` and change `.option("header", "false")` to `.option("header", "true")` on line 113. This will make sure we get the data with headers of csv columns. This step in only necessary when running task1.
+### Hadoop directory
 
-### How to setup hadoop directory
-
-In `aggregate` file in each task please change hadoop paths to point to your user directory. Basically change *akirilov* to your CERN username.
+In `aggregate` file in each task user's username will be used as part of result files destination directory in hadoop. $USER environment variable will be used to get username. If you want to change locations please modify `aggregate` files.
 
 ## Running task 1
+
+### Setup
+
+After running `./init` please go to file `CMSSpark/src/python/CMSSpark/phedex.py` and change `.option("header", "false")` to `.option("header", "true")` on line 113. This will make sure we get the data with headers of csv columns. This step in not necessary for other tasks.
 
 ### Retrieving and aggregating data
 

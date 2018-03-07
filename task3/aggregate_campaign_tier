@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Chnage username in location value 
+location=/cms/users/$USER/campaign_tier
+hdir=hdfs://$location
+
+# Copy script file that will be ran
+cp aggregate_campaign_tier.py ../CMSSpark/src/python/CMSSpark/aggregate_campaign_tier.py
+
+# Remove previous data first
+hadoop fs -rm -r $location
+
+PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark aggregate_campaign_tier.py --fout=$hdir --yarn --verbose --date=20170228
+
+hadoop fs -get $hdir .
+
+# extract header
+head -1 campaign_tier/part-00000 > campaign_tier_df.csv
+
+# concatenate all parts except header
+header=`cat campaign_tier_df.csv`
+cat campaign_tier/part* | grep -v $header >> campaign_tier_df.csv
