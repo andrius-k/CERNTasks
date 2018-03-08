@@ -13,6 +13,7 @@ campaigns/
 *_plots/
 *.csv
 *.pdf
+*.txt
 *_time_data.txt
 _SUCCESS
 part-*

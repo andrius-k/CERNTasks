@@ -10,7 +10,7 @@ import shutil
 import operator
 import argparse
 
-PLOTS_PATH = 'campaign_plots/'
+PLOTS_PATH = '../CERNTasks.wiki/images/campaign_plots/'
 
 report = ''
 
@@ -37,7 +37,16 @@ def write_campaigns_to_report(df, head=0):
                       ' | ' + str(round(row['second_mss'], 1)) + 
                       ' | ' + str(row['sites']) + 
                       ' |')
-        
+def write_sites_to_report(df, head=0):
+    append_report('| Site | Campaign Count |')
+    append_report('| ------- | ------ |')
+
+    if head != 0:
+        df = df[:head]
+
+    for index, row in df.iterrows():
+        append_report('| ' + row['site'] + ' | ' + str(int(row['campaign_count'])) + ' |')
+
 def write_campaign_tier_relationship_to_report(df, head=0):
     append_report('| Campaign | Tier | DBS Size (PB) | PhEDEx Size (PB) | Ratio |')
     append_report('| ------- | ------ | ------ | ------ | ------ |')
@@ -86,11 +95,21 @@ def write_report():
 def commit_report():
     os.system('(cd ../CERNTasks.wiki/; git add -A; git commit -m "Auto-commiting report"; git push origin master)')
 
+def append_campaign_execution_time():
+    with open('spark_exec_time_campaigns.txt', 'r') as f:
+        append_report('#### Spark job execution time for data above: %s' % f.read())
+
+def append_campaign_tier_execution_time():
+    with open('spark_exec_time_campaign_tier.txt', 'r') as f:
+        append_report('#### Spark job execution time for data above: %s' % f.read())
+
 def plot_pie_charts(df, file_name):
-    head = df.head(6)
+    head = df.head(6)\
+             .set_index('campaign')\
+             .drop(['mss_name', 'second_mss_name', 'mss', 'second_mss', 'dbs_size', 'phedex_size', 'sites'], axis=1)
 
     fig, axes = plt.subplots(2, 3, figsize=(30, 15))
-    for i, (idx, row) in enumerate(head.set_index('campaign').drop(['mss_name', 'second_mss_name'], axis=1).iterrows()):
+    for i, (idx, row) in enumerate(head.iterrows()):
         ax = axes[i // 3, i % 3]
         row = row[row.gt(row.sum() * .01)]
         ax.pie(row, labels=row.index, startangle=30)
@@ -102,9 +121,7 @@ def plot_pie_charts(df, file_name):
     plot_filepath = PLOTS_PATH + file_name
     plt.savefig(plot_filepath, dpi=120)
 
-    return plot_filepath
-
-def analyse_data_by_campaign():
+def visualize_data_by_campaign():
     df = pd.read_csv('campaigns_dbs_df.csv')
 
     append_report('## Campaigns')
@@ -119,11 +136,12 @@ def analyse_data_by_campaign():
     write_campaigns_to_report(df, 10)
 
     # Make pie chart of sites for most significant DBS campaigns
-    plot_filepath = plot_pie_charts(df, 'dbs_size_campaigns_plot.jpg')
+    plot_filename = 'dbs_size_campaigns_plot.jpg'
+    plot_pie_charts(df, plot_filename)
 
     append_report('### Plot of 6 most significant DBS campaigns')
-    append_report('Each pie chart visualises the size of campaign data in each data site that campaign is present.')
-    append_report('![6 most significant DBS campaigns](images/%s)' % plot_filepath)
+    append_report('Each pie chart visualizes the size of campaign data in each data site that campaign is present.')
+    append_report('![6 most significant DBS campaigns](images/campaign_plots/%s)' % plot_filename)
 
     df = pd.read_csv('campaigns_phedex_df.csv')
 
@@ -137,13 +155,23 @@ def analyse_data_by_campaign():
     write_campaigns_to_report(df, 10)
 
     # Make pie chart of sites for most significant PhEDEx campaigns
-    plot_filepath = plot_pie_charts(df, 'phedex_size_campaigns_plot.jpg')
+    plot_filename = 'phedex_size_campaigns_plot.jpg'
+    plot_pie_charts(df, plot_filename)
 
     append_report('### Plot of 6 most significant PhEDEx campaigns')
-    append_report('Each pie chart visualises the size of campaign data in each data site that campaign is present.')
-    append_report('![6 most significant PhEDEx campaigns](images/%s)' % plot_filepath)
+    append_report('Each pie chart visualizes the size of campaign data in each data site that campaign is present.')
+    append_report('![6 most significant PhEDEx campaigns](images/campaign_plots/%s)' % plot_filename)
 
-def analyse_campaign_tier_relationship():
+def visualize_site_campaign_count():
+    df = pd.read_csv('site_campaign_count_df.csv')
+
+    append_report('## Sites')
+
+    append_report('### Showing TOP 10 most significant sites by campaign count')
+
+    write_sites_to_report(df, 10)
+
+def visualize_campaign_tier_relationship():
     df = pd.read_csv('campaign_tier_df.csv')
 
     append_report('## Campaign sizes in data tiers')
@@ -167,8 +195,11 @@ def main():
     create_plot_dirs()
     append_report_header()
   
-    analyse_data_by_campaign()
-    analyse_campaign_tier_relationship()
+    visualize_data_by_campaign()
+    visualize_site_campaign_count()
+    append_campaign_execution_time()
+    visualize_campaign_tier_relationship()
+    append_campaign_tier_execution_time()
 
     write_report()
 

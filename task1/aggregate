@@ -9,12 +9,20 @@ hadoop fs -rm -r $location
 
 PYTHONPATH=$(pwd)/../CMSSpark/src/python ../CMSSpark/bin/run_spark phedex.py --fout=$hdir --yarn --verbose --date=20170228
 
-hadoop fs -get $hdir .
+hadoop fs -test -e $hdir
+exists=$?
 
-# extract header
-head -1 datasets/2017/02/28/part-00000 > df.csv
+# Download results and recreate csv files only if results exist in hdfs
+if [[ $exists -eq 0 ]]
+then
+    # Delete previously downloaded directory and download new one
+    basename $hdir | xargs rm -rf
+    hadoop fs -get $hdir .
 
-# concatenate all parts except header
-header=`cat df.csv`
-cat datasets/2017/02/28/part* | grep -v $header >> df.csv
+    # extract header
+    head -1 datasets/2017/02/28/part-00000 > df.csv
 
+    # concatenate all parts except header
+    header=`cat df.csv`
+    cat datasets/2017/02/28/part* | grep -v $header >> df.csv
+fi

@@ -14,8 +14,7 @@ from types import NoneType
 
 from pyspark import SparkContext, StorageLevel
 from pyspark.sql import HiveContext
-from pyspark.sql.functions import udf
-from pyspark.sql.functions import struct, array
+from pyspark.sql.functions import struct, array, udf, countDistinct
 from pyspark.sql.types import IntegerType, LongType, StringType, StructType, StructField
 
 # CMSSpark modules
@@ -175,33 +174,40 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                 .withColumnRenamed('sum(block_bytes)', 'size')\
                 .withColumnRenamed('node_name', 'site')
 
+    # Aggregate data for site - campaign count table
+
+    # site, count
+    site_campaign_count_df = campaign_site_df.groupBy(['site'])\
+                                             .agg(countDistinct('campaign'))\
+                                             .withColumnRenamed('count(campaign)', 'campaign_count')\
+                                             .orderBy('campaign_count', ascending=False)\
+                                             .limit(LIMIT)
+
     # Find two most significant sites for each campaign
 
     columns_before_pivot = campaign_site_df.columns
 
     result = campaign_site_df.groupBy(['campaign'])\
                              .pivot('site')\
-                             .sum('size')
+                             .sum('size')\
+                             .na.fill(0)
     
     columns_after_pivot = result.columns
     sites_columns = [x for x in columns_after_pivot if x not in columns_before_pivot]
 
-    number_of_sites_udf = udf(lambda row: len([x for x in row if x != None]), IntegerType())
+    number_of_sites_udf = udf(lambda row: len([x for x in row if x != 0]), IntegerType())
     mss_udf = udf(get_mss, LongType())
     second_mss_udf = udf(get_second_mss, LongType())
     mss_name_udf = udf(lambda row: get_mss_name(row, sites_columns), StringType())
     second_mss_name_udf = udf(lambda row: get_second_mss_name(row, sites_columns), StringType())
 
-    result = result.withColumn('sites', number_of_sites_udf(struct([result[x] for x in sites_columns])))
-    result = result.withColumn('mss', mss_udf(struct([result[x] for x in sites_columns])))
-    result = result.withColumn('mss_name', mss_name_udf(struct([result[x] for x in sites_columns])))
-    result = result.withColumn('second_mss', second_mss_udf(struct([result[x] for x in sites_columns])))
-    result = result.withColumn('second_mss_name', second_mss_name_udf(struct([result[x] for x in sites_columns])))
+    result = result.withColumn('sites', number_of_sites_udf(struct([result[x] for x in sites_columns])))\
+                   .withColumn('mss', mss_udf(struct([result[x] for x in sites_columns])))\
+                   .withColumn('mss_name', mss_name_udf(struct([result[x] for x in sites_columns])))\
+                   .withColumn('second_mss', second_mss_udf(struct([result[x] for x in sites_columns])))\
+                   .withColumn('second_mss_name', second_mss_name_udf(struct([result[x] for x in sites_columns])))
 
-    for site_column in sites_columns:
-        result = result.drop(site_column)
-
-    # campaign, phedex_size, dbs_size, mss, mss_name, second_mss, second_mss_name, sites    
+    # campaign, phedex_size, dbs_size, mss, mss_name, second_mss, second_mss_name, sites
     result = result.join(dbs_phedex_df, result.campaign == dbs_phedex_df.campaign)\
                    .drop(result.campaign)
 
@@ -216,6 +222,9 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
         
         sorted_by_dbs.write.format("com.databricks.spark.csv")\
                            .option("header", "true").save('%s/dbs' % fout)
+
+        site_campaign_count_df.write.format("com.databricks.spark.csv")\
+                              .option("header", "true").save('%s/site_campaign_count' % fout)
 
     ctx.stop()
 
@@ -239,7 +248,10 @@ def main():
     run(fout, date, yarn, verbose, patterns, antipatterns, inst)
     print('Start time  : %s' % time.strftime('%Y-%m-%d %H:%M:%S GMT', time.gmtime(time0)))
     print('End time    : %s' % time.strftime('%Y-%m-%d %H:%M:%S GMT', time.gmtime(time.time())))
-    print('Elapsed time: %s sec' % elapsed_time(time0))
+    print('Elapsed time: %s' % elapsed_time(time0))
+
+    with open("spark_exec_time_campaigns.txt", "w") as text_file:
+        text_file.write(elapsed_time(time0))
 
 if __name__ == '__main__':
     main()
