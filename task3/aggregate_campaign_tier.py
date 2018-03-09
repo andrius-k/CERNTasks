@@ -123,32 +123,41 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                    .withColumnRenamed('sum(size)', 'dbs_size')
 
     # PhEDEx
-    # dataset, phedex_size
-    phedex_cols = ['dataset_name', 'block_bytes']
+
+    size_on_disk_udf = udf(lambda site, size: 0 if site.endswith(('_MSS', '_Buffer', '_Export')) else size)
+
+    # dataset, size, site
+    phedex_cols = ['dataset_name', 'block_bytes', 'node_name']
     phedex_df = phedex.select(phedex_cols)\
                       .withColumnRenamed('dataset_name', 'dataset')\
                       .withColumnRenamed('block_bytes', 'size')\
-                      .groupBy('dataset')\
-                      .agg({'size':'sum'})\
-                      .withColumnRenamed('sum(size)', 'phedex_size')
+                      .withColumnRenamed('node_name', 'site')
+    
+    # dataset, phedex_size, size_on_disk
+    phedex_df = phedex_df.withColumn('size_on_disk', size_on_disk_udf(phedex_df.site, phedex_df.size))\
+                         .groupBy('dataset')\
+                         .agg({'size':'sum', 'size_on_disk': 'sum'})\
+                         .withColumnRenamed('sum(size)', 'phedex_size')\
+                         .withColumnRenamed('sum(size_on_disk)', 'size_on_disk')
 
-    # dataset, dbs_size, phedex_size
+    # dataset, dbs_size, phedex_size, size_on_disk
     result = phedex_df.join(dbs_df, phedex_df.dataset == dbs_df.dataset)\
                       .drop(dbs_df.dataset)
 
     extract_campaign_udf = udf(lambda dataset: dataset.split('/')[2])
     extract_tier_udf = udf(lambda dataset: dataset.split('/')[3])
 
-    # campaign, tier, dbs_size, phedex_size
+    # campaign, tier, dbs_size, phedex_size, size_on_disk
     result = result.withColumn('campaign', extract_campaign_udf(result.dataset))\
                    .withColumn('tier', extract_tier_udf(result.dataset))\
                    .drop('dataset')\
                    .groupBy(['campaign', 'tier'])\
-                   .agg({'dbs_size':'sum', 'phedex_size': 'sum'})\
+                   .agg({'dbs_size':'sum', 'phedex_size': 'sum', 'size_on_disk': 'sum'})\
                    .withColumnRenamed('sum(dbs_size)', 'dbs_size')\
-                   .withColumnRenamed('sum(phedex_size)', 'phedex_size')
+                   .withColumnRenamed('sum(phedex_size)', 'phedex_size')\
+                   .withColumnRenamed('sum(size_on_disk)', 'size_on_disk')
 
-    # campaign, tier, dbs_size, phedex_size
+    # campaign, tier, dbs_size, phedex_size, size_on_disk
     result = result.withColumn('sum_size', result.dbs_size + result.phedex_size)
     result = result.orderBy(result.sum_size, ascending=False)\
                    .drop('sum_size')\

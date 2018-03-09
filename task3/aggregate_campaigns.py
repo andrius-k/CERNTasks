@@ -108,17 +108,22 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     fromdate = '%s-%s-%s' % (date[:4], date[4:6], date[6:])
     todate = fromdate
 
-    # read DBS and Phedex tables
+    # read Phedex and DBS tables
     tables = {}
-    tables.update(dbs_tables(sqlContext, inst=inst, verbose=verbose))
+
     tables.update(phedex_tables(sqlContext, verbose=verbose, fromdate=fromdate, todate=todate))
     phedex = tables['phedex_df']
-    
-    daf = tables['daf']
-    ddf = tables['ddf']
-    fdf = tables['fdf']
 
-    extract_campaign_udf = udf(lambda dataset: dataset.split('/')[2])
+    instances = ['GLOBAL', 'PHYS01', 'PHYS02', 'PHYS03']
+    for instance in instances:
+        dbs_dict = dbs_tables(sqlContext, inst=instance, verbose=verbose)
+        for key, val in dbs_dict.items():
+            new_key = '%s_%s' % (key, instance)
+            tables[new_key] = val
+    
+    daf = reduce(lambda a,b: a.unionAll(b), [tables['daf_%s' % x] for x in instances])
+    ddf = reduce(lambda a,b: a.unionAll(b), [tables['ddf_%s' % x] for x in instances])
+    fdf = reduce(lambda a,b: a.unionAll(b), [tables['fdf_%s' % x] for x in instances])
 
     dbs_fdf_cols = ['f_dataset_id', 'f_file_size']
     dbs_ddf_cols = ['d_dataset_id', 'd_dataset', 'd_dataset_access_type_id']
@@ -129,6 +134,8 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
     daf_df = daf.select(dbs_daf_cols)
 
     # Aggregate by campaign and find total PhEDEx and DBS size of each campaign
+
+    extract_campaign_udf = udf(lambda dataset: dataset.split('/')[2])
 
     # dataset, size, dataset_access_type_id
     dbs_df = fdf_df.join(ddf_df, fdf_df.f_dataset_id == ddf_df.d_dataset_id)\
@@ -143,7 +150,7 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                    .drop(dbs_df.dataset_access_type_id)\
                    .drop(daf_df.dataset_access_type_id)
 
-    # 1. campaign, dbs_size
+    # campaign, dbs_size
     dbs_df = dbs_df.where(dbs_df.dataset_access_type == 'VALID')\
                    .withColumn('campaign', extract_campaign_udf(dbs_df.dataset))\
                    .groupBy(['campaign'])\
@@ -151,7 +158,7 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                    .withColumnRenamed('sum(size)', 'dbs_size')\
                    .drop('dataset')
 
-    # 2. campaign, phedex_size
+    # campaign, phedex_size
     phedex_cols = ['dataset_name', 'block_bytes']
     phedex_df = phedex.select(phedex_cols)
     phedex_df = phedex_df.withColumn('campaign', extract_campaign_udf(phedex_df.dataset_name))\
@@ -159,13 +166,16 @@ def run(fout, date, yarn=None, verbose=None, patterns=None, antipatterns=None, i
                 .agg({'block_bytes':'sum'})\
                 .withColumnRenamed('sum(block_bytes)', 'phedex_size')
 
-    # 3. campaign, dbs_size, phedex_size
+    # campaign, dbs_size, phedex_size
     dbs_phedex_df = dbs_df.join(phedex_df, dbs_df.campaign == phedex_df.campaign)\
                           .drop(dbs_df.campaign)
 
+    print 'DISTINCT DBS AND PHEDEX CAMPAIGN COUNT:'
+    print dbs_phedex_df.select('campaign').distinct().count()
+
     # Select campaign - site pairs and their sizes (from PhEDEx)
 
-    # 1. campaign, site, size
+    # campaign, site, size
     phedex_cols = ['dataset_name', 'node_name', 'block_bytes']
     campaign_site_df = phedex.select(phedex_cols)
     campaign_site_df = campaign_site_df.withColumn('campaign', extract_campaign_udf(campaign_site_df.dataset_name))\

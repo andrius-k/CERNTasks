@@ -19,8 +19,14 @@ def append_report(lines):
     report = report + lines
     report = report + '\n'
 
+def to_pb_string(bytes, decimal_points=1):
+    return str(round(bytes / float(1000**5), decimal_points + 1))
+
+def to_pib_string(bytes, decimal_points=1):
+    return str(round(bytes / float(1024**5), decimal_points))
+
 def write_campaigns_to_report(df, head=0):
-    append_report('| Campaign | PhEDEx Size (PB) | DBS Size (PB) | Ratio | Most Significant Site | Second Most Significant Site | Most Significant Site Size (PB) | Second Most Significant Site Size (PB) | Number of Sites |')
+    append_report('| Campaign | PhEDEx Size (PB - PiB) | DBS Size (PB - PiB) | Ratio | Most Significant Site | Second Most Significant Site | Most Significant Site Size (PB - PiB) | Second Most Significant Site Size (PB - PiB) | Number of Sites |')
     append_report('| ------- | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |')
 
     if head != 0:
@@ -28,13 +34,13 @@ def write_campaigns_to_report(df, head=0):
 
     for index, row in df.iterrows():
         append_report('| ' + row['campaign'] + 
-                      ' | ' + str(round(row['phedex_size'], 1)) + 
-                      ' | ' + str(round(row['dbs_size'], 1)) + 
+                      ' | ' + to_pb_string(row['phedex_size']) + ' - ' + to_pib_string(row['phedex_size']) + 
+                      ' | ' + to_pb_string(row['dbs_size']) + ' - ' + to_pib_string(row['dbs_size']) + 
                       ' | ' + '{:.2f}'.format(float(row['phedex_size']/row['dbs_size'])) + 
                       ' | ' + row['mss_name'] + 
                       ' | ' + row['second_mss_name'] + 
-                      ' | ' + str(round(row['mss'], 1)) + 
-                      ' | ' + str(round(row['second_mss'], 1)) + 
+                      ' | ' + to_pb_string(row['mss']) + ' - ' + to_pib_string(row['mss']) + 
+                      ' | ' + to_pb_string(row['second_mss']) + ' - ' + to_pib_string(row['second_mss']) + 
                       ' | ' + str(row['sites']) + 
                       ' |')
 def write_sites_to_report(df, head=0):
@@ -48,8 +54,8 @@ def write_sites_to_report(df, head=0):
         append_report('| ' + row['site'] + ' | ' + str(int(row['campaign_count'])) + ' |')
 
 def write_campaign_tier_relationship_to_report(df, head=0):
-    append_report('| Campaign | Tier | DBS Size (PB) | PhEDEx Size (PB) | Ratio |')
-    append_report('| ------- | ------ | ------ | ------ | ------ |')
+    append_report('| Campaign | Tier | DBS Size (PB - PiB) | PhEDEx Size (PB - PiB) | Size on Disk (PB - PiB) | Ratio |')
+    append_report('| ------- | ------ | ------ | ------ | ------ | ------ |')
 
     if head != 0:
         df = df[:head]
@@ -57,8 +63,9 @@ def write_campaign_tier_relationship_to_report(df, head=0):
     for index, row in df.iterrows():
         append_report('| ' + row['campaign'] + 
                       ' | ' + row['tier'] + 
-                      ' | ' + str(round(row['dbs_size'], 1)) + 
-                      ' | ' + str(round(row['phedex_size'], 1)) + 
+                      ' | ' + to_pb_string(row['dbs_size']) + ' - ' + to_pib_string(row['dbs_size']) +
+                      ' | ' + to_pb_string(row['phedex_size']) + ' - ' + to_pib_string(row['phedex_size']) +
+                      ' | ' + to_pb_string(row['size_on_disk']) + ' - ' + to_pib_string(row['size_on_disk']) +
                       ' | ' + '{:.2f}'.format(float(row['phedex_size']/row['dbs_size'])) + 
                       ' |')
 
@@ -125,12 +132,6 @@ def visualize_data_by_campaign():
     df = pd.read_csv('campaigns_dbs_df.csv')
 
     append_report('## Campaigns')
-
-    # Bytes to petabytes
-    df['dbs_size'] = df['dbs_size'] / 1000000000000000
-    df['phedex_size'] = df['phedex_size'] / 1000000000000000
-    df['mss'] = df['mss'] / 1000000000000000
-    df['second_mss'] = df['second_mss'] / 1000000000000000
     
     append_report('### Showing TOP 10 most significant campaigns by DBS size')
     write_campaigns_to_report(df, 10)
@@ -144,12 +145,6 @@ def visualize_data_by_campaign():
     append_report('![6 most significant DBS campaigns](images/campaign_plots/%s)' % plot_filename)
 
     df = pd.read_csv('campaigns_phedex_df.csv')
-
-    # Bytes to petabytes
-    df['dbs_size'] = df['dbs_size'] / 1000000000000000
-    df['phedex_size'] = df['phedex_size'] / 1000000000000000
-    df['mss'] = df['mss'] / 1000000000000000
-    df['second_mss'] = df['second_mss'] / 1000000000000000
 
     append_report('### Showing TOP 10 most significant campaigns by PhEDEx size')
     write_campaigns_to_report(df, 10)
@@ -177,11 +172,7 @@ def visualize_campaign_tier_relationship():
     append_report('## Campaign sizes in data tiers')
 
     append_report('### Showing TOP 20 most significant campaign - tier pairs')
-            
-    # Bytes to petabytes
-    df['dbs_size'] = df['dbs_size'] / 1000000000000000 
-    df['phedex_size'] = df['phedex_size'] / 1000000000000000 
-
+    
     write_campaign_tier_relationship_to_report(df, 20)
 
 def main():
